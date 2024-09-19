@@ -168,6 +168,9 @@ config PHY_LXT
 config PHY_MARVELL
 	bool "Marvell Ethernet PHYs support"
 
+config PHY_MOTORCOMM
+	bool "Motorcomm Ethernet PHYs support"
+
 config PHY_MESON_GXL
 	bool "Amlogic Meson GXL Internal PHY support"
 

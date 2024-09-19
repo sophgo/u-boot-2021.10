@@ -168,6 +168,9 @@ struct phy_device {
 	u32 phy_id;
 	bool is_c45;
 	u32 flags;
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+	char phy_led_flag;
+#endif
 };
 
 struct fixed_link {
@@ -531,6 +534,7 @@ int phy_meson_gxl_init(void);
 int phy_natsemi_init(void);
 int phy_nxp_tja11xx_init(void);
 int phy_realtek_init(void);
+int phy_motorcomm_init(void);
 int phy_smsc_init(void);
 int phy_teranetics_init(void);
 int phy_ti_init(void);

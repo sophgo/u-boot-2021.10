@@ -55,6 +55,12 @@
 #define GICD_BASE			(0x50001000)
 #define GICC_BASE			(0x50002000)
 
+/* RTC SRAM last 256bytes for oem info */
+#define CONSOLE_OEM_INFO   (0x5200000 + 0x7f82) //1byte for console selsect
+#define CONSOLE_USE_UART0  (0x00)
+#define CONSOLE_USE_UART2  (0x02)
+#define DTSTYPE_OEM_INFO   (0x5200000 + 0x7fA0) //32byte for dts type
+
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (9 << 20))
 
@@ -72,6 +78,7 @@
 /* 16550 Serial Configuration */
 #define CONFIG_CONS_INDEX		1
 #define CONFIG_SYS_NS16550_COM1		0x29180000
+#define CONFIG_SYS_NS16550_COM3		0x291a0000
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	(-4)
 #define CONFIG_SYS_NS16550_MEM32

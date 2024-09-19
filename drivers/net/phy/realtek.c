@@ -10,6 +10,7 @@
 #include <linux/bitops.h>
 #include <phy.h>
 #include <linux/delay.h>
+#include <asm/io.h>
 
 #define PHY_RTL8211x_FORCE_MASTER BIT(1)
 #define PHY_RTL8211E_PINE64_GIGABIT_FIX BIT(2)
@@ -117,6 +118,13 @@ static int rtl8211e_probe(struct phy_device *phydev)
 
 static int rtl8211f_probe(struct phy_device *phydev)
 {
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+	u32 sram_oem;
+
+	sram_oem = readl(0x5207F80);
+	phydev->phy_led_flag = (char)((sram_oem >> 24) & 0xff);
+	//printf("sram_oem = %x, phy_led_flag = %x\n", sram_oem,phydev->phy_led_flag);
+#endif
 #ifdef CONFIG_RTL8211F_PHY_FORCE_EEE_RXC_ON
 	phydev->flags |= PHY_RTL8211F_FORCE_EEE_RXC_ON;
 #endif
@@ -256,7 +264,11 @@ static int rtl8211f_config(struct phy_device *phydev)
 
 #if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0xd04);
-	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x820B);
+	//printf("phy_led_flag = %x\n", phydev->phy_led_flag);
+	if (phydev->phy_led_flag == 0x1)
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0xC00B);
+	else
+		phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x820B);
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_RTL8211F_PAGE_SELECT, 0x0);
 #endif
 	genphy_config_aneg(phydev);
