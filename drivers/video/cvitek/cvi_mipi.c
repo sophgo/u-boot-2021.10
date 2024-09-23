@@ -21,9 +21,7 @@
  * bit[0]: dcs cmd mode. 0(hw)/1(sw)
  */
 static int cmd_mode = 1;
-unsigned int pixel_clk;
-u8 lane_num;
-u8 bits;
+static int pxl_clk, lane_num, bits;
 
 static void _fill_disp_timing(struct sclr_disp_timing *timing, struct sync_info_s *sync_info)
 {
@@ -94,6 +92,8 @@ int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 	struct combo_dev_cfg_s dev_cfg_t = *dev_cfg;
 	struct disp_ctrl_gpios ctrl_gpios;
 
+	lane_num = 0;
+	bits = 0;
 	dphy_dsi_disable_lanes();
 	for (i = 0; i < LANE_MAX_NUM; i++) {
 		if ((dev_cfg_t.lane_id[i] < 0) || (dev_cfg_t.lane_id[i] >= MIPI_TX_LANE_MAX)) {
@@ -107,7 +107,7 @@ int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 		}
 	}
 	if (lane_num == 0) {
-		printf("%s: no active mipi-dsi lane\n", __func__);
+		debug("%s: no active mipi-dsi lane\n", __func__);
 		return -EINVAL;
 	}
 
@@ -136,11 +136,11 @@ int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 	return -EINVAL;
 	}
 	_cal_htt_extra(&dev_cfg_t, lane_num, bits);
-	pixel_clk = dev_cfg_t.pixel_clk;
 	_fill_disp_timing(&timing, &dev_cfg_t.sync_info);
 	preamble_on = (dev_cfg_t.pixel_clk * bits / lane_num) > 1500000;
 	dphy_dsi_lane_en(true, data_en, preamble_on);
 	dphy_dsi_set_pll(dev_cfg_t.pixel_clk, lane_num, bits);
+	pxl_clk = dev_cfg_t.pixel_clk;
 	sclr_disp_set_intf(SCLR_VO_INTF_MIPI);
 	sclr_dsi_config(lane_num, dsi_fmt, dev_cfg_t.sync_info.vid_hline_pixels);
 	sclr_disp_set_timing(&timing);
@@ -188,10 +188,10 @@ int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 int mipi_tx_set_cmd(struct cmd_info_s *cmd_info)
 {
 	if (cmd_info->cmd_size > CMD_MAX_NUM) {
-		printf("cmd_size(%d) can't exceed %d!\n", cmd_info->cmd_size, CMD_MAX_NUM);
+		debug("cmd_size(%d) can't exceed %d!\n", cmd_info->cmd_size, CMD_MAX_NUM);
 		return -EINVAL;
 	} else if ((cmd_info->cmd_size != 0) && !cmd_info->cmd) {
-		printf("cmd is NULL, but cmd_size(%d) isn't zero!\n", cmd_info->cmd_size);
+		debug("cmd is NULL, but cmd_size(%d) isn't zero!\n", cmd_info->cmd_size);
 		return -EINVAL;
 	}
 
@@ -211,19 +211,25 @@ int mipi_tx_get_cmd(struct get_cmd_info_s *get_cmd_info)
 	int ret = 0;
 
 	if (get_cmd_info->get_data_size > RX_MAX_NUM) {
-		printf("get_data_size(%d) can't exceed %d!\n", get_cmd_info->get_data_size, RX_MAX_NUM);
+		debug("get_data_size(%d) can't exceed %d!\n", get_cmd_info->get_data_size, RX_MAX_NUM);
 		return -EINVAL;
 	} else if ((get_cmd_info->get_data_size != 0) && (!get_cmd_info->get_data)) {
-		printf("cmd is NULL, but cmd_size(%d) isn't zero!\n", get_cmd_info->get_data_size);
+		debug("cmd is NULL, but cmd_size(%d) isn't zero!\n", get_cmd_info->get_data_size);
 		return -EINVAL;
 	}
 
-	if (pixel_clk)
-		dphy_dsi_set_pll(pixel_clk * 2, lane_num, bits);
+	if (pxl_clk) {
+		dphy_dsi_set_pll(pxl_clk * 2, lane_num, bits);
+		mdelay(1);
+	}
+
 	ret = sclr_dsi_dcs_read_buffer(get_cmd_info->data_type, get_cmd_info->data_param
 		, get_cmd_info->get_data, get_cmd_info->get_data_size, cmd_mode & 0x01);
-	if (pixel_clk)
-		dphy_dsi_set_pll(pixel_clk, lane_num, bits);
+
+	if (pxl_clk) {
+		dphy_dsi_set_pll(pxl_clk, lane_num, bits);
+		mdelay(1);
+	}
 
 	return ret;
 }

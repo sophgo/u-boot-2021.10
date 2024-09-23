@@ -46,6 +46,18 @@ void __weak board_init_f(ulong dummy)
 {
 }
 
+
+#ifdef CONFIG_ARM64
+
+#ifdef CONFIG_ARMV8_SWITCH_TO_EL1
+static u64 fdt_addr, entry_point;
+static void switch_to_el1(void)
+{
+	armv8_switch_to_el1(0, 0, fdt_addr, 0, entry_point, ES_TO_AARCH32);
+}
+#endif
+#endif
+
 /*
  * This function jumps to an image with argument. Normally an FDT or ATAGS
  * image.
@@ -54,10 +66,13 @@ void __weak board_init_f(ulong dummy)
 #ifdef CONFIG_ARM64
 void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 {
-	debug("Entering kernel arg pointer: 0x%p\n", spl_image->arg);
-	cleanup_before_linux();
-	armv8_switch_to_el2((u64)spl_image->arg, 0, 0, 0,
-			    spl_image->entry_point, ES_TO_AARCH64);
+	debug("flags=%d, entry_point=0x%lx, fdt_addr=0x%p\n",
+	      spl_image->flags, spl_image->entry_point, spl_image->fdt_addr);
+	fdt_addr = (u64)(spl_image->fdt_addr);
+	entry_point = (u64)(spl_image->entry_point);
+
+	armv8_switch_to_el2((u64)fdt_addr, 0, 0, 0,
+			    (u64)switch_to_el1, ES_TO_AARCH64);
 }
 #else
 void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)

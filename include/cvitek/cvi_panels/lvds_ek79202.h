@@ -3,9 +3,9 @@
 
 #include <cvi_lvds.h>
 
-struct cvi_lvds_cfg_s lvds_ek79202_cfg = {
-	.mode = LVDS_MODE_VESA,
-	.out_bits = LVDS_OUT_8BIT,
+VO_LVDS_ATTR_S lvds_ek79202_cfg = {
+	.lvds_vesa_mode = VO_LVDS_MODE_VESA,
+	.out_bits = VO_LVDS_OUT_8BIT,
 	.chn_num = 1,
 	.lane_id = {VO_LVDS_LANE_0, VO_LVDS_LANE_1, VO_LVDS_LANE_2, VO_LVDS_LANE_3, VO_LVDS_LANE_CLK},
 	.lane_pn_swap = {false, false, false, false, false},
@@ -22,7 +22,6 @@ struct cvi_lvds_cfg_s lvds_ek79202_cfg = {
 		.vid_hsa_pos_polarity = 0,
 	},
 	.u16FrameRate = 60,
-	.pixelclock = 72403,
 };
 
 #else

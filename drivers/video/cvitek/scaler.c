@@ -754,7 +754,7 @@ void sclr_disp_set_pattern(enum sclr_disp_pat_type type,
 		break;
 	}
 	default:
-		printf("%s - unacceptiable pattern-type(%d)\n", __func__, type);
+		debug("%s - unacceptiable pattern-type(%d)\n", __func__, type);
 		break;
 	}
 }
@@ -889,7 +889,7 @@ void sclr_disp_set_intf(enum sclr_vo_intf intf)
 		else if (intf == SCLR_VO_INTF_BT1120)
 			sclr_disp_mux_sel(SCLR_VO_SEL_BT1120);
 		dphy_dsi_lane_en(true, data_en, false);
-	} else if (intf == SCLR_VO_INTF_I80) {
+	} else if (intf == SCLR_VO_INTF_I80_SW) {
 		sclr_disp_mux_sel(SCLR_VO_SEL_I80);
 		dphy_dsi_lane_en(true, data_en, false);
 		_reg_write_mask(reg_base + REG_SCL_DISP_MCU_IF_CTRL, BIT(0), 1);
@@ -1077,7 +1077,7 @@ int sclr_dsi_long_packet_raw(const u8 *data, u8 count)
 	u8 i = 0;
 
 	if ((count > SCL_MAX_DSI_LP) || (count == 0)) {
-		printf("%s: count(%d) invalid\n", __func__, count);
+		debug("%s: count(%d) invalid\n", __func__, count);
 		return -1;
 	}
 
@@ -1175,20 +1175,20 @@ int sclr_dsi_short_packet(u8 di, const u8 *data, u8 count, bool sw_mode)
 int sclr_dsi_dcs_write_buffer(u8 di, const void *data, size_t len, bool sw_mode)
 {
 	if (len == 0) {
-		printf("[cvi_mipi_tx] %s: 0 param unacceptable.\n", __func__);
+		debug("[cvi_mipi_tx] %s: 0 param unacceptable.\n", __func__);
 		return -1;
 	}
 
-	if (di == 0x06 || di == 0x05 || di == 0x04 || di == 0x03) {
+	if ((di == 0x06) || (di == 0x05) || (di == 0x04) || (di == 0x03)) {
 		if (len != 1) {
-			printf("[cvi_mipi_tx] %s: cmd(0x%02x) should has 1 param.\n", __func__, di);
+			debug("[cvi_mipi_tx] %s: cmd(0x%02x) should has 1 param.\n", __func__, di);
 			return -1;
 		}
 		return sclr_dsi_short_packet(di, data, len, sw_mode);
 	}
-	if (di == 0x15 || di == 0x37 || di == 0x13 || di == 0x14 || di == 0x23) {
+	if ((di == 0x15) || (di == 0x37) || (di == 0x13) || (di == 0x14) || (di == 0x23)) {
 		if (len != 2) {
-			printf("[cvi_mipi_tx] %s: cmd(0x%02x) should has 2 param.\n", __func__, di);
+			debug("[cvi_mipi_tx] %s: cmd(0x%02x) should has 2 param.\n", __func__, di);
 			return -1;
 		}
 		return sclr_dsi_short_packet(di, data, len, sw_mode);
@@ -1217,11 +1217,10 @@ int sclr_dsi_dcs_read_buffer(u8 di, const u16 data_param, u8 *data, size_t len, 
 		len = 4;
 
 	if (sclr_dsi_get_mode() == SCLR_DSI_MODE_HS) {
-		printf("[cvi_mipi_tx] %s: not work in HS.\n", __func__);
+		debug("[cvi_mipi_tx] %s: not work in HS.\n", __func__);
 		return -1;
 	}
 
-	// only set necessery bits
 	_reg_write_mask(reg_base + REG_SCL_DSI_ESC, 0x07, 0x04);
 
 	// send read cmd
@@ -1234,7 +1233,7 @@ int sclr_dsi_dcs_read_buffer(u8 di, const u16 data_param, u8 *data, size_t len, 
 	if (ret == 0) {
 		sclr_dsi_clr_mode();
 	} else {
-		printf("[cvi_mipi_tx] %s: BTA error.\n", __func__);
+		debug("[cvi_mipi_tx] %s: BTA error.\n", __func__);
 		return ret;
 	}
 
@@ -1257,12 +1256,12 @@ int sclr_dsi_dcs_read_buffer(u8 di, const u16 data_param, u8 *data, size_t len, 
 			data[i] = (rx_data >> (i * 8)) & 0xff;
 		break;
 	case ACK_WR:
-		printf("[cvi_mipi_tx] %s: dcs read, ack with error(%#x %#x).\n"
+		debug("[cvi_mipi_tx] %s: dcs read, ack with error(%#x %#x).\n"
 			, __func__, (rx_data >> 8) & 0xff, (rx_data >> 16) & 0xff);
 		ret = -1;
 		break;
 	default:
-		printf("[cvi_mipi_tx] %s: unknown DT, %#x.", __func__, rx_data);
+		debug("[cvi_mipi_tx] %s: unknown DT, %#x.", __func__, rx_data);
 		ret = -1;
 		break;
 	}
@@ -1315,7 +1314,7 @@ void sclr_i80_packet(u32 cmd)
 	} while (++cnt < 10);
 
 	if (cnt == 10)
-		printf("[cvi_vip] %s: cmd(%#x) not ready.\n", __func__, cmd);
+		debug("[cvi_vip] %s: cmd(%#x) not ready.\n", __func__, cmd);
 }
 
 void sclr_i80_run(void)
@@ -1331,7 +1330,7 @@ void sclr_i80_run(void)
 	} while (++cnt < 10);
 
 	if (cnt == 10) {
-		printf("[cvi_vip] %s: not finish. sw clear it.\n", __func__);
+		debug("[cvi_vip] %s: not finish. sw clear it.\n", __func__);
 		_reg_write_mask(reg_base + REG_SCL_DISP_MCU_IF_CTRL, BIT(10), BIT(10));
 	}
 }
@@ -1503,6 +1502,11 @@ void i80_trig(void)
 		printf("[I80] %s: hw  mcu cmd not ready.\n", __func__);
 
 	_reg_write_mask(reg_base + REG_SCL_DISP_MCU_HW_CMD, BIT(3), BIT(3));
+}
+
+void sclr_disp_set_mcu_disable(u8 mode)
+{
+	_reg_write(reg_base + REG_SCL_DISP_MCU_HW_AUTO, mode ? 0xa : 0x1a);
 }
 
 void sclr_disp_set_mcu_en(u8 mode)

@@ -13,7 +13,7 @@ config PYLIBFDT
 
 config DTOC
 	bool
-	select PYLIBFDT
+#	select PYLIBFDT
 
 config BINMAN
 	bool

@@ -8,7 +8,7 @@
 #ifndef __CVI_PANEL_DIFFS_H__
 #define __CVI_PANEL_DIFFS_H__
 
-#ifdef CONFIG_DISPLAY_CVITEK_I80
+#ifdef CONFIG_DISPLAY_CVITEK_I80_SW
 #define CVI_JPEG ""
 #define START_VO "startvo 0 65536 0;"
 #elif defined(CONFIG_DISPLAY_CVITEK_I80_HW)

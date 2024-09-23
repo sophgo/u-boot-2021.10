@@ -187,7 +187,12 @@ ifneq ($(CONFIG_$(SPL_TPL_)SIZE_LIMIT),)
 LDPPFLAGS += -DIMAGE_MAX_SIZE=$(CONFIG_$(SPL_TPL_)SIZE_LIMIT)
 endif
 ifneq ($(CONFIG_$(SPL_TPL_)TEXT_BASE),)
+# use cvi_board_memmap.h
+ifneq ($(CONFIG_SYS_TEXT_BASE),)
+LDPPFLAGS += -DIMAGE_TEXT_BASE=$(CONFIG_SYS_TEXT_BASE)
+else
 LDPPFLAGS += -DIMAGE_TEXT_BASE=$(CONFIG_$(SPL_TPL_)TEXT_BASE)
+endif
 endif
 
 MKIMAGEOUTPUT ?= /dev/null
@@ -403,7 +408,11 @@ LDFLAGS_$(SPL_BIN) += --build-id=none
 
 # Pick the best-match (i.e. SPL_TEXT_BASE for SPL, TPL_TEXT_BASE for TPL)
 ifneq ($(CONFIG_$(SPL_TPL_)TEXT_BASE),)
+ifneq ($(CONFIG_SYS_TEXT_BASE),)
+LDFLAGS_$(SPL_BIN) += -Ttext $(CONFIG_SYS_TEXT_BASE)
+else
 LDFLAGS_$(SPL_BIN) += -Ttext $(CONFIG_$(SPL_TPL_)TEXT_BASE)
+endif
 endif
 
 ifdef CONFIG_TARGET_SOCFPGA_ARRIA10

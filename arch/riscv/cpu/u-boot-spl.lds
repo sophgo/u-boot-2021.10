@@ -6,6 +6,7 @@
  *
  * and arch/mips/cpu/u-boot-spl.lds.
  */
+ 
 MEMORY { .spl_mem : ORIGIN = IMAGE_TEXT_BASE, LENGTH = IMAGE_MAX_SIZE }
 /*
 MEMORY { .bss_mem : ORIGIN = CONFIG_SPL_BSS_START_ADDR, \
@@ -81,4 +82,5 @@ SECTIONS
 		. = ALIGN(8);
 		__bss_end = .;
 	} > .spl_mem
+	__bss_size = __bss_end - __bss_start;
 }

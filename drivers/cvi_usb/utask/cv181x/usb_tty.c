@@ -24,12 +24,15 @@
 #include "include/cvi_errno.h"
 #include "include/cvi_private.h"
 #include "cvi_reboot.h"
-#include "cvi_efuse.h"
+#include "cvitek/cvi_efuse.h"
 #include <common.h>
 #include <command.h>
 #include <linux/delay.h>
 #include "cvi_update.h"
 #include "include/dps.h"
+#define USB_RW_EFUSE 	1
+#define HIGNT_SN 		0x0305010C
+#define LOW_SN			0x03050110
 
 #ifdef BUILD_ATF
 extern uint16_t cvi_usb_vid;
@@ -156,13 +159,6 @@ static struct sram_info sram_info;
 static char *_allow_cmds[] = { "setenv", "saveenv", "efusew", "efuser" };
 
 #if USB_RW_EFUSE // Mark_to_do
-enum CVI_EFUSE_LOCK_WRITE_E {
-	CVI_EFUSE_LOCK_WRITE_HASH0_PUBLIC = CVI_EFUSE_OTHERS + 1,
-	CVI_EFUSE_LOCK_WRITE_LOADER_EK,
-	CVI_EFUSE_LOCK_WRITE_DEVICE_EK,
-	CVI_EFUSE_LOCK_WRITE_LAST
-};
-
 static char *_allow_areas[] = { "USER",	     "DEVICE_ID", "HASH0_PUBLIC",
 				"LOADER_EK", "DEVICE_EK", "AREA_LAST" };
 static char *_allow_wl_areas[] = { "LOCK_HASH0_PUBLIC",
@@ -170,6 +166,7 @@ static char *_allow_wl_areas[] = { "LOCK_HASH0_PUBLIC",
 				   "LOCK_DEVICE_EK",
 				   "LOCK_LAST",
 				   "SECUREBOOT",
+				   "FASTBOOT",
 				   "OTHERS",
 				   "LOCK_WRITE_HASH0_PUBLIC",
 				   "LOCK_WRITE_LOADER_EK",
@@ -484,7 +481,7 @@ static void efusew_cmd(uint32_t length, uint8_t *ack_result, uint8_t ack_len)
 #ifdef CONFIG_HW_WATCHDOG
 		hw_watchdog_disable();
 #endif
-		strlcpy(cmd,
+		strncpy(cmd,
 			(void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE),
 			min((uint32_t)(length - HEADER_SIZE),
 			    (uint32_t)sizeof(cmd)));
@@ -610,7 +607,7 @@ static void efuser_cmd(uint32_t length, uint8_t *read_buf, uint8_t buf_len)
 #ifdef CONFIG_HW_WATCHDOG
 		hw_watchdog_disable();
 #endif
-		strlcpy(cmd,
+		strncpy(cmd,
 			(void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE),
 			min((uint32_t)(length - HEADER_SIZE),
 			    (uint32_t)sizeof(cmd)));
@@ -731,23 +728,9 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 	case CVI_USB_S2D:
 		/* INFO("CVI_USB_S2D, addr = 0x%lx, len = 0x%lx\n",dest_addr, msg_s2d->size); */
 		sendInReq(length, CVI_USB_S2D, bulkCmplEmpty, NULL, 0);
-
 		if (dest_addr >= GLOBAL_MEM_START_ADDR)
-		{
-			resetOutReqS2D(dest_addr, msg_s2d->size, bulkResetOutReq);
-
-#ifdef CONFIG_NAND_SUPPORT
-			// Erase partition first
-			if (!strncmp((char *)((uintptr_t)HEADER_ADDR), "CIMG", 4)) {
-				strlcpy(prevExtra,
-					(char *)((uintptr_t)HEADER_ADDR + 20),
-					EXTRA_FLAG_SIZE);
-				snprintf(cmd, 255, "nand erase.part -y %s", prevExtra);
-				pr_debug("%s\n", cmd);
-				run_command(cmd, 0);
-			}
-#endif
-		}
+			resetOutReqS2D(dest_addr, msg_s2d->size,
+				       bulkResetOutReq);
 		else
 			sramOutReqS2D(dest_addr, msg_s2d->size);
 		return;
@@ -793,6 +776,18 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 		resetOutReq();
 		break;
 	case CVI_USB_PROGRAM:
+#ifdef CONFIG_NAND_SUPPORT
+		// Erase partition first
+		if (strncmp((char *)((uintptr_t)HEADER_ADDR + 20), prevExtra,
+			    EXTRA_FLAG_SIZE)) {
+			strncpy(prevExtra,
+				(char *)((uintptr_t)HEADER_ADDR + 20),
+				EXTRA_FLAG_SIZE);
+			snprintf(cmd, 255, "nand erase.part -y %s", prevExtra);
+			pr_debug("%s\n", cmd);
+			run_command(cmd, 0);
+		}
+#endif
 		/* INFO("CVI_USB_PROGRAM\n"); */
 		_prgImage((void *)UPDATE_ADDR, 0x40, NULL);
 		sendInReq(length, CVI_USB_PROGRAM, bulkResetOutReq, NULL, 0);
@@ -859,8 +854,8 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 #ifdef CONFIG_HW_WATCHDOG
 		hw_watchdog_disable();
 #endif
-		sn_hi = readl(GP_REG4);
-		sn_lo = readl(GP_REG5);
+		sn_hi = readl((u32 *)HIGNT_SN);
+		sn_lo = readl((u32 *)LOW_SN);
 		ack_result[0] = (sn_hi >> 24) & 0xFF;
 		ack_result[1] = (sn_hi >> 16) & 0xFF;
 		ack_result[2] = (sn_hi >> 8) & 0xFF;

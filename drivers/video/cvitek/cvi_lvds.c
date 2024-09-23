@@ -17,7 +17,7 @@
 #include "dsi_phy.h"
 #include <cvi_lvds.h>
 
-static void _fill_disp_timing(struct sclr_disp_timing *timing, struct sync_info_s *sync_info)
+static void _fill_disp_timing(struct sclr_disp_timing *timing, const struct sync_info_s *sync_info)
 {
 	timing->vtotal = sync_info->vid_vsa_lines + sync_info->vid_vbp_lines
 			+ sync_info->vid_active_lines + sync_info->vid_vfp_lines - 1;
@@ -40,7 +40,7 @@ static void _fill_disp_timing(struct sclr_disp_timing *timing, struct sync_info_
 	timing->hmde_end = timing->hfde_end;
 }
 
-int lvds_init(struct cvi_lvds_cfg_s *lvds_cfg)
+int lvds_init(const VO_LVDS_ATTR_S *lvds_cfg)
 {
 	union sclr_lvdstx lvds_reg;
 	bool data_en[LANE_MAX_NUM] = {false, false, false, false, false};
@@ -63,14 +63,14 @@ int lvds_init(struct cvi_lvds_cfg_s *lvds_cfg)
 	sclr_disp_set_intf(SCLR_VO_INTF_LVDS);
 
 	lvds_reg.b.out_bit = lvds_cfg->out_bits;
-	lvds_reg.b.vesa_mode = lvds_cfg->mode;
+	lvds_reg.b.vesa_mode = lvds_cfg->lvds_vesa_mode;
 	if (lvds_cfg->chn_num == 1)
 		lvds_reg.b.dual_ch = 0;
 	else if (lvds_cfg->chn_num == 2)
 		lvds_reg.b.dual_ch = 1;
 	else {
 		lvds_reg.b.dual_ch = 0;
-		printf("invalid lvds chn_num(%d). Use 1 instead.", lvds_cfg->chn_num);
+		debug("invalid lvds chn_num(%d). Use 1 instead.", lvds_cfg->chn_num);
 	}
 	lvds_reg.b.vs_out_en = 1;
 	lvds_reg.b.hs_out_en = 1;
@@ -80,7 +80,12 @@ int lvds_init(struct cvi_lvds_cfg_s *lvds_cfg)
 	lvds_reg.b.oe_swap = 0;
 	lvds_reg.b.en = 1;
 
-	dphy_lvds_set_pll(lvds_cfg->pixelclock, lvds_cfg->chn_num);
+	u32 pixelclock = lvds_cfg->u16FrameRate * (lvds_cfg->sync_info.vid_vsa_lines + lvds_cfg->sync_info.vid_vbp_lines
+					+ lvds_cfg->sync_info.vid_active_lines + lvds_cfg->sync_info.vid_vfp_lines)
+					* (lvds_cfg->sync_info.vid_hsa_pixels + lvds_cfg->sync_info.vid_hbp_pixels
+					+ lvds_cfg->sync_info.vid_hline_pixels + lvds_cfg->sync_info.vid_hfp_pixels) / 1000;
+
+	dphy_lvds_set_pll(pixelclock, lvds_cfg->chn_num);
 	dphy_dsi_analog_setting(true);
 	sclr_lvdstx_set(lvds_reg);
 

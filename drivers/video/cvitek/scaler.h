@@ -391,7 +391,7 @@ enum sclr_vo_sel {
 enum sclr_vo_intf {
 	SCLR_VO_INTF_DISABLE,
 	SCLR_VO_INTF_SW,
-	SCLR_VO_INTF_I80,
+	SCLR_VO_INTF_I80_SW,
 	SCLR_VO_INTF_I80_HW,
 	SCLR_VO_INTF_BT601,
 	SCLR_VO_INTF_BT656,
@@ -495,6 +495,7 @@ void i80_set_cmd2(u32 cmd);
 void i80_set_cmd3(u32 cmd);
 void i80_set_cmd_cnt(u32 cmdcnt);
 void i80_trig(void);
+void sclr_disp_set_mcu_disable(u8 mode);
 void sclr_disp_set_mcu_en(u8 mode);
 
 #endif  //_CVI_SCL_H_

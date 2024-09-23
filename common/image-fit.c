@@ -1886,6 +1886,7 @@ int fit_conf_get_prop_node(const void *fit, int noffset,
 
 static int fit_image_select(const void *fit, int rd_noffset, int verify)
 {
+  /*
 	fit_image_print(fit, rd_noffset, "   ");
 
 	if (verify) {
@@ -1896,6 +1897,7 @@ static int fit_image_select(const void *fit, int rd_noffset, int verify)
 		}
 		puts("OK\n");
 	}
+  */
 
 	return 0;
 }

@@ -16,7 +16,7 @@
  */
 #define GP_REG0 (TOP_BASE + 0x80)
 #define GP_REG1 (TOP_BASE + 0x84)
-#define GP_REG2 (TOP_BASE + 0x88)
+#define GP_REG2 (TOP_BASE + 0x88
 #define GP_REG3 (TOP_BASE + 0x8C)
 #define GP_REG4 (TOP_BASE + 0x90)
 #define GP_REG5 (TOP_BASE + 0x94)
@@ -74,7 +74,6 @@
 #define PINMUX_USB     42
 
 #define PINMUX_USB_VBUS_DET     (PINMUX_BASE + 0x108)
-
 #define REG_TOP_USB_ECO			(TOP_BASE + 0xB4)
 #define BIT_TOP_USB_ECO_RX_FLUSH	0x80
 /* rst */

@@ -135,12 +135,14 @@ static void cv182xa_ephy_init(void)
 	// En TX_Rterm
 	mmio_write_32(0x03009040, (0x0001 | mmio_read_32(0x03009040)));
 	// change rx vcm
+
 	mmio_write_32(0x0300904c, (0x820 | mmio_read_32(0x0300904c)));
+
 //	Link Pulse
 	// Switch to MII-page10
 	mmio_write_32(0x0300907c, 0x0a00);
-#if 1
 	// Set Link Pulse
+
 	mmio_write_32(0x03009040, 0x3e00);
 	mmio_write_32(0x03009044, 0x7864);
 	mmio_write_32(0x03009048, 0x6470);
@@ -154,7 +156,8 @@ static void cv182xa_ephy_init(void)
 	mmio_write_32(0x03009068, 0x8688);
 	mmio_write_32(0x0300906c, 0x8484);
 	mmio_write_32(0x03009070, 0x0082);
-#else 
+
+/*
 	// from sean
 	// Fix err: the status is still linkup when removed the network cable.
 	mmio_write_32(0x03009040, 0x2000);
@@ -170,7 +173,7 @@ static void cv182xa_ephy_init(void)
 	mmio_write_32(0x03009068, 0x8283);
 	mmio_write_32(0x0300906c, 0x8182);
 	mmio_write_32(0x03009070, 0x0081);
-#endif
+*/
 // TP_IDLE
 	// Switch to MII-page11
 	mmio_write_32(0x0300907c, 0x0b00);
@@ -263,6 +266,7 @@ static void cv182xa_ephy_init(void)
 
 	// Switch to MII-page18
 	mmio_write_32(0x0300907c, 0x1200);
+
 #if IS_ENABLED(CONFIG_TARGET_CVITEK_CV181X)
 	/* mars LPF(8, 8, 8, 8) HPF(-8, 50(+32), -36, -8) */
 	// lpf

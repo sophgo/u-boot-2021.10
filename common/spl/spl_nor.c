@@ -30,42 +30,11 @@
 #define CONFIG_SYS_OS_BASE		0x300000
 #endif
 
-typedef enum {
-	Uninitialized,
-	Initialized
-} spinor_status_e;
-static spinor_status_e spinor_status = Uninitialized;
-
-static void cvi_spi_nor_init(void)
-{
-	uint32_t reg;
-
-	mmio_write_32(REG_BASE + REG_SPI_DMMR, 0);
-	reg = mmio_read_32(REG_BASE + REG_SPI_CTRL);
-	reg &= ~BIT_SPI_CTRL_SCK_DIV_MASK;
-	/* set clock to 75M */
-	reg |= 1;
-	mmio_write_32(REG_BASE + REG_SPI_CTRL, reg);
-	/* negative sample */
-	mmio_write_16(REG_BASE + REG_SPI_DLY_CTRL, BIT_SPI_DLY_CTRL_CET | BIT_SPI_DLY_CTRL_NEG_SAMPLE);
-	mmio_write_32(REG_SPI_CE_CTRL, 0);
-
-	reg = 0x003BA9;
-	reg &= ~(0xf << 16);
-	reg |= (6 << 16);
-	mmio_write_32(REG_BASE + REG_SPI_TRAN_CSR, reg);
-
-	mmio_write_32(REG_BASE + REG_SPI_DMMR, 1);
-
-}
-
 static ulong spl_nor_load_read(struct spl_load_info *load, ulong sector,
 			       ulong count, void *buf)
 {
 	debug("%s: sector %lx, count %lx, buf %p\n",
 	      __func__, sector, count, buf);
-	if (spinor_status != Initialized)
-		cvi_spi_nor_init();
 
 	memcpy(buf, (void *)sector, count);
 
@@ -95,11 +64,11 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 		 * Load Linux from its location in NOR flash to its defined
 		 * location in SDRAM
 		 */
-		if (spinor_status != Initialized) {
-			cvi_spi_nor_init();
-			spinor_status = Initialized;
-		}
+	#ifdef DOUBLESDK
+		header = (const struct image_header *)(REG_BASE + SPL_BOOT_BAK_PART_OFFSET);
+	#else
 		header = (const struct image_header *)(REG_BASE + SPL_BOOT_PART_OFFSET);
+	#endif
 #ifdef CONFIG_SPL_LOAD_FIT
 		if (image_get_magic(header) == FDT_MAGIC) {
 			int ret;
@@ -109,7 +78,11 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 			load.read = spl_nor_load_read;
 
 			ret = spl_load_simple_fit(spl_image, &load,
+#ifdef DOUBLESDK
+						  (REG_BASE + SPL_BOOT_BAK_PART_OFFSET),
+#else
 						  (REG_BASE + SPL_BOOT_PART_OFFSET),
+#endif
 						  (void *)header);
 
 #if defined CONFIG_SYS_SPL_ARGS_ADDR && defined CONFIG_CMD_SPL_NOR_OFS
@@ -128,11 +101,17 @@ static int spl_nor_load_image(struct spl_image_info *spl_image,
 			ret = spl_parse_image_header(spl_image, header);
 			if (ret)
 				return ret;
-
+#ifdef DOUBLESDK
+			memcpy((void *)spl_image->load_addr,
+			       (void *)((REG_BASE + SPL_BOOT_BAK_PART_OFFSET) +
+					sizeof(struct image_header)),
+			       spl_image->size);
+#else
 			memcpy((void *)spl_image->load_addr,
 			       (void *)((REG_BASE + SPL_BOOT_PART_OFFSET) +
 					sizeof(struct image_header)),
 			       spl_image->size);
+#endif
 #ifdef CONFIG_SYS_FDT_BASE
 			spl_image->arg = (void *)CONFIG_SYS_FDT_BASE;
 #endif

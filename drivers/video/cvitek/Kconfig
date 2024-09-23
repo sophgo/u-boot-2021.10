@@ -48,7 +48,7 @@ config DISPLAY_CVITEK_LVDS
 	  communication (sending one bit at time) over two copper wires
 	  (differential) that are placed at 180 degrees from each other.
 
-config DISPLAY_CVITEK_I80
+config DISPLAY_CVITEK_I80_SW
 	bool "I80 Port"
 	help
 	  This enables Intel 8080(I80) display support.
@@ -71,11 +71,6 @@ config DISPLAY_CVITEK_MIPI
 	  The MIPI Display Serial Interface (MIPI DSI) defines a
 	  high-speed serial interface between a host processor and
 	  a display module.
-
-config MIPI_PANEL_LANE_SWAP
-	bool "MIPI DSI lane PN swap"
-	help
-          This enables Display Serial Interface(DSI) lane PN swap function.
 
 endchoice
 

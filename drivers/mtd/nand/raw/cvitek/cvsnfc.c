@@ -132,7 +132,8 @@ static void cvsnfc_send_cmd_pageprog(struct cvsnfc_host *host)
 		return;
 	}
 
-	host->set_system_clock(spi->write, ENABLE);
+	if (host->set_system_clock)
+		host->set_system_clock(spi->write, ENABLE);
 
 	val = CVSNFC_INT_CLR_ALL;
 	cvsfc_write(host, CVSNFC_INT_CLR, val);
@@ -245,7 +246,8 @@ static void cvsnfc_send_cmd_readstart(struct cvsnfc_host *host)
 		return;
 	}
 
-	host->set_system_clock(spi->read, ENABLE);
+	if (host->set_system_clock)
+		host->set_system_clock(spi->read, ENABLE);
 
 	val = CVSNFC_INT_CLR_ALL;
 	cvsfc_write(host, CVSNFC_INT_CLR, val);
@@ -1774,6 +1776,23 @@ struct cvsnfc_host *cvsnfc_get_host(void)
 {
 	return &snfc_host;
 }
+void dma_dwc_clk_set(int enable)
+{
+       uint32_t clk_state;
+
+       clk_state = readl((void *)0x03002004);
+       if(enable)
+               clk_state |= 1 << 1;
+       else
+               clk_state &= ~(1 << 1);
+
+       writel(clk_state, (void *)0x03002004);
+}
+
+static void dw_clk_enable(void)
+{
+       dma_dwc_clk_set(1);
+}
 
 /*****************************************************************************/
 int board_nand_init(struct nand_chip *nand)
@@ -1785,7 +1804,7 @@ int board_nand_init(struct nand_chip *nand)
 		return 0;
 
 	pr_info("Init SPI Nand Flash Controller ... ");
-
+	dw_clk_enable();
 	mtd->priv = nand;
 
 	memset((char *)host, 0, sizeof(struct cvsnfc_host));

@@ -29,8 +29,6 @@ struct audio_codec_ops {
 	 */
 	int (*set_params)(struct udevice *dev, int interface, int rate,
 			  int mclk_freq, int bits_per_sample, uint channels);
-	int (*codec_close)(struct udevice *dev);
-
 };
 
 #define audio_codec_get_ops(dev) ((struct audio_codec_ops *)(dev)->driver->ops)
@@ -48,7 +46,5 @@ struct audio_codec_ops {
  */
 int audio_codec_set_params(struct udevice *dev, int interface, int rate,
 			   int mclk_freq, int bits_per_sample, uint channels);
-
-int audio_codec_close(struct udevice *dev);
 
 #endif  /* __AUDIO_CODEC_H__ */

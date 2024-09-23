@@ -36,8 +36,7 @@
 #define CONFIG_REMAKE_ELF
 
 /* Physical Memory Map */
-#define CONFIG_SYS_RESVIONSZ		CVIMMAP_ION_SIZE
-#define CONFIG_SYS_RESVLOGOSZ		CVIMMAP_BOOTLOGO_SIZE
+#define CONFIG_SYS_RESVIONSZ		(CVIMMAP_ION_SIZE + CVIMMAP_FREERTOS_SIZE)
 #define CONFIG_SYS_BOOTMAPSZ		CVIMMAP_KERNEL_MEMORY_SIZE
 
 #define PHYS_SDRAM_1			CVIMMAP_KERNEL_MEMORY_ADDR
@@ -70,6 +69,7 @@
 #define SYS_COUNTER_FREQ_IN_SECOND 25000000
 
 /* 16550 Serial Configuration */
+#define CONFIG_CONS_INDEX		1
 #define CONFIG_SYS_NS16550_COM1		0x04140000
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE	(-4)
@@ -144,6 +144,10 @@
 
 #endif /* CONFIG_NAND_SUPPORT */
 
+#ifdef CONFIG_SPL_NAND_SUPPORT
+	#define CONFIG_NAND_FLASH_CVSNFC_SPL
+#endif /* CONFIG_SPL_NAND_SUPPORT */
+
 /* Monitor Command Prompt */
 #define CONFIG_SYS_CBSIZE		512	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE		(CONFIG_SYS_CBSIZE + \
@@ -210,10 +214,13 @@
 		#else
 			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0"
 		#endif /* CONFIG_SKIP_RAMDISK */
-	#elif defined(CONFIG_SD_BOOT)
-		#define ROOTARGS "root=" ROOTFS_DEV " rootwait rw"
 	#else
-		#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+		// #define ROOTARGS "rootfstype=squashfs rootwait ro root=/dev/mtdblock4"
+		#ifdef DOUBLESDK
+			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_BAK_DEV
+		#else
+			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+		#endif
 	#endif
 
 	/* BOOTARGS */
@@ -223,16 +230,14 @@
 	#define CONSOLEDEV "ttyS0\0"
 
 	/* config loglevel */
-	#ifdef RELEASE
-		#define CONSOLE_LOGLEVEL   " loglevel=0"
+	#ifndef CONFIG_BUILD_FOR_DEBUG
+		#define CONSOLE_LOGLEVEL   " loglevel=0 \0"
 		#define EARLYCON_RELEASE   " release "
 	#else
-		#define CONSOLE_LOGLEVEL   " loglevel=9"
+		#define CONSOLE_LOGLEVEL   " loglevel=9 \0"
 		#define EARLYCON_RELEASE   " "
 	#endif
-
-	#define OTHERBOOTARGS   "earlycon=sbi riscv.fwsz="  __stringify(CVIMMAP_OPENSBI_SIZE) " " \
-		EARLYCON_RELEASE CONSOLE_LOGLEVEL
+	#define OTHERBOOTARGS   "othbootargs=earlycon=sbi riscv.fwsz=0x80000" EARLYCON_RELEASE CONSOLE_LOGLEVEL
 
 	/* config mtdids */
 	#ifdef CONFIG_NAND_SUPPORT
@@ -253,7 +258,7 @@
 		"mtdids=" MTDIDS_DEFAULT "\0" \
 		"root=" ROOTARGS "\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
-		"othbootargs=" OTHERBOOTARGS "\0" \
+		OTHERBOOTARGS \
 		PARTS_OFFSET
 
 /********************************************************************************/
@@ -286,25 +291,23 @@
 		#define SHOWLOGOCMD
 	#endif
 
-	#define SET_BOOTARGS "setenv bootargs ${reserved_mem} ${root} ${mtdparts} " \
+	#define SET_BOOTARGS "setenv bootargs ${root} ${mtdparts} " \
 					"console=$consoledev,$baudrate $othbootargs;"
 
 	#define SD_BOOTM_COMMAND \
 				SET_BOOTARGS \
-				"echo Boot from SD ...;" \
-				"mmc dev 0 && fatload mmc 0 ${uImage_addr} boot.sd; " \
+				"echo Boot from SD with ramboot.itb;" \
+				"mmc dev 1 && fatload mmc 1 ${uImage_addr} ramboot.itb; " \
 				"if test $? -eq 0; then " \
 				UBOOT_VBOOT_BOOTM_COMMAND \
 				"fi;"
 
-	#ifndef CONFIG_SD_BOOT
-		#ifdef CONFIG_ENABLE_ALIOS_UPDATE
-			#define CONFIG_BOOTCOMMAND	"cvi_update_rtos"
-		#else
-			#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update || run norboot || run nandboot ||run emmcboot"
-		#endif
+	#if defined(CONFIG_NAND_SUPPORT)
+		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update ||run nandboot"
+	#elif defined(CONFIG_EMMC_SUPPORT)
+		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update ||run emmcboot"
 	#else
-		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "run sdboot"
+		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update ||run norboot"
 	#endif
 
 	#if defined(CONFIG_NAND_SUPPORT)
@@ -318,16 +321,31 @@
 				"mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
 				UBOOT_VBOOT_BOOTM_COMMAND
 	#elif defined(CONFIG_SPI_FLASH)
-		#define CONFIG_NORBOOTCOMMAND \
+		#ifdef DOUBLESDK
+			#define CONFIG_NORBOOTCOMMAND \
 				SET_BOOTARGS \
-				"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+				"sf probe;sf read ${uImage_addr} ${BOOT_BAK_PART_OFFSET} ${BOOT_BAK_PART_SIZE};"\
 				UBOOT_VBOOT_BOOTM_COMMAND
+		#else
+			#define CONFIG_NORBOOTCOMMAND \
+					SET_BOOTARGS \
+					"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+					UBOOT_VBOOT_BOOTM_COMMAND
+		#endif
 	#elif defined(CONFIG_EMMC_SUPPORT)
-		#define CONFIG_EMMCBOOTCOMMAND \
-				SET_BOOTARGS \
-				"mmc dev 0 ;"		\
-				"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;"		\
-				UBOOT_VBOOT_BOOTM_COMMAND
+		#ifdef DOUBLESDK
+			#define CONFIG_EMMCBOOTCOMMAND \
+					SET_BOOTARGS \
+					"mmc dev 0 ;"		\
+					"mmc read ${uImage_addr} ${BOOT_BAK_PART_OFFSET} ${BOOT_BAK_PART_SIZE} ;" \
+					UBOOT_VBOOT_BOOTM_COMMAND
+		#else
+			#define CONFIG_EMMCBOOTCOMMAND \
+					SET_BOOTARGS \
+					"mmc dev 0 ;"		\
+					"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;" \
+					UBOOT_VBOOT_BOOTM_COMMAND
+		#endif
 	#endif
 
 #else
@@ -336,9 +354,9 @@
 
 #endif /* CONFIG_USE_DEFAULT_ENV */
 
+#define CVI_SPL_FDT_ADDR CVIMMAP_SPL_FDT_ADDR
 #define CVI_SPL_BOOTAGRS \
-	PARTS " "  \
-	ROOTARGS " " \
-	"console=ttyS0,115200 " \
-	OTHERBOOTARGS "\0"
+        PARTS " "  \
+        ROOTARGS " " \
+	"console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000" CONSOLE_LOGLEVEL
 #endif /* __CV181X_ASIC_H__ */

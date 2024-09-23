@@ -110,7 +110,7 @@ void dphy_init(enum sclr_vo_intf intf)
 	_reg_write(reg_base + REG_DSI_PHY_ESC_WAKE, 0x100);
 
 	if (intf == SCLR_VO_INTF_BT656 || intf == SCLR_VO_INTF_BT1120 ||
-	    intf == SCLR_VO_INTF_I80 || intf == SCLR_VO_INTF_I80_HW)
+	    intf == SCLR_VO_INTF_I80_SW || intf == SCLR_VO_INTF_I80_HW)
 		_reg_write(reg_base + REG_DSI_PHY_EXT_GPIO, 0x000fffff);
 	else
 		_reg_write(reg_base + REG_DSI_PHY_EXT_GPIO, 0x0);
@@ -151,12 +151,6 @@ void _cal_pll_reg(u32 clkkHz, u32 VCOR_10000, u32 *reg_txpll, u32 *reg_set, u32 
 
 	*reg_set = ((u64)(factor * loop_gain1) << 26) / VCOC_1000;
 
-	if (bt_div) {
-		vip_sys_reg_write_mask(VIP_SYS_VIP_CLK_CTRL0, 0x10, 0);
-		reg_disp_div_sel >>= 1;
-	} else
-		vip_sys_reg_write_mask(VIP_SYS_VIP_CLK_CTRL0, 0x10, 0x10);
-
 	_reg_write_mask(reg_base + REG_DSI_PHY_TXPLL, 0x300000, div_loop << 20);
 
 	*reg_txpll = (reg_div_sel << 10) | (reg_divout_sel << 8) | reg_disp_div_sel;
@@ -184,9 +178,6 @@ void dphy_lvds_set_pll(u32 clkkHz, u8 link)
 
 	_reg_write_mask(reg_base + REG_DSI_PHY_TXPLL, 0x7ff, reg_txpll);
 	_reg_write(reg_base + REG_DSI_PHY_REG_SET, reg_set);
-	// update
-	_reg_write_mask(reg_base + REG_DSI_PHY_REG_8C, BIT(0), 0);
-	_reg_write_mask(reg_base + REG_DSI_PHY_REG_8C, BIT(0), 1);
 }
 
 void dphy_dsi_set_pll(u32 clkkHz, u8 lane, u8 bits)

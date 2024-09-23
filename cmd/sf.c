@@ -154,6 +154,28 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 	return 0;
 }
 
+static int do_spi_flash_getinfo(int argc, char *const argv[])
+{
+	struct spi_flash *addr;
+	char *endp;
+
+	if (argc != 2)
+		return -1;
+	addr = (struct spi_flash *)hextoul(argv[1], &endp);
+	if (*argv[1] == 0 || *endp != 0) {
+		printf("get info error\n");
+		return -1;
+	}
+
+	if (flash == NULL) {
+		printf("get info error, please execute `sf probe`\n");
+		return -1;
+	}
+	memcpy(addr, flash, sizeof(struct spi_flash));
+
+	return 0;
+}
+
 /**
  * Write a block of data to SPI flash, first checking if it is different from
  * what is already there.
@@ -172,7 +194,6 @@ static const char *spi_flash_update_block(struct spi_flash *flash, u32 offset,
 		size_t len, const char *buf, char *cmp_buf, size_t *skipped)
 {
 	char *ptr = (char *)buf;
-	u8 *tmp = NULL;
 
 	debug("offset=%#x, sector_size=%#x, len=%#zx\n",
 	      offset, flash->sector_size, len);
@@ -191,10 +212,6 @@ static const char *spi_flash_update_block(struct spi_flash *flash, u32 offset,
 		return "erase";
 	/* If it's a partial sector, copy the data into the temp-buffer */
 	if (len != flash->sector_size) {
-		for (int i = 0; i < flash->sector_size; i++) {
-			tmp = (u8 *)cmp_buf;
-			tmp[i] = 0xff;
-		}
 		memcpy(cmp_buf, buf, len);
 		ptr = cmp_buf;
 	}
@@ -594,6 +611,8 @@ static int do_spi_flash(struct cmd_tbl *cmdtp, int flag, int argc,
 		ret = do_spi_flash_erase(argc, argv);
 	else if (strcmp(cmd, "protect") == 0)
 		ret = do_spi_protect(argc, argv);
+	else if (strcmp(cmd, "getinfo") == 0)
+		ret = do_spi_flash_getinfo(argc, argv);
 #ifdef CONFIG_CMD_SF_TEST
 	else if (!strcmp(cmd, "test"))
 		ret = do_spi_flash_test(argc, argv);

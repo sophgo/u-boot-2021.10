@@ -14,6 +14,7 @@
 #include <reset.h>
 #include <mmc.h>
 #include <sdhci.h>
+#include <env.h>
 
 #define MMC_TYPE_MMC  0       /* MMC card */
 #define MMC_TYPE_SD   1       /* SD card */
@@ -39,6 +40,7 @@ struct cvi_sdhci_host {
 	uint32_t mmc_fmax_freq;
 	uint32_t mmc_fmin_freq;
 	struct reset_ctl reset_ctl;
+	uint8_t final_tap;
 };
 
 struct cvi_sdhci_driver_data {
@@ -287,7 +289,16 @@ int cvi_general_execute_tuning(struct mmc *mmc, u8 opcode)
 
 	u32 norm_stat_en_b, err_stat_en_b;
 	u32 norm_signal_en_b, ctl2;
+#ifdef CONFIG_MMC_SKIP_TUNING
+	if (host->index == MMC_TYPE_MMC) {
+		pr_debug("===skip tuning tap: %d.\n", cvi_host->final_tap);
 
+		if (cvi_host->final_tap) {
+			cvi_mmc_set_tap(host, cvi_host->final_tap);
+			return 0;
+		}
+	}
+#endif
 	norm_stat_en_b = sdhci_readw(host, SDHCI_INT_ENABLE);
 	err_stat_en_b = sdhci_readw(host, SDHCI_ERR_INT_STATUS_EN);
 	norm_signal_en_b = sdhci_readl(host, SDHCI_SIGNAL_ENABLE);
@@ -518,6 +529,12 @@ static int cvi_sdhci_probe(struct udevice *dev)
 	int ret;
 
 	pr_debug("%s-%d: mmc%d probe\n", __func__, __LINE__, host->index);
+#ifdef CONFIG_MMC_SKIP_TUNING
+	if (host->index == MMC_TYPE_MMC) {
+        cvi_host->final_tap = (sdhci_readl(host, CVI_SDHCI_PHY_TX_RX_DLY) >>16) &0x7F;
+        pr_debug("mmc probe tuning tap: %d. \n", cvi_host->final_tap);
+    }
+#endif
 	ret = reset_get_by_name(dev, "sdhci", &cvi_host->reset_ctl);
 	if (ret) {
 		pr_debug("warning: reset_get_by_name failed\n");

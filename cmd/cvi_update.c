@@ -3,15 +3,23 @@
 #include <asm/io.h>
 #include <imgs.h>
 #include <ubifs_uboot.h>
-#include <serial.h>
-#include <asm/global_data.h>
-#include <linux/delay.h>
 #ifdef CONFIG_NAND_SUPPORT
 #include <nand.h>
 #endif
 #include "cvi_update.h"
 
+#define COMPARE_STRING_LEN 3
+#define SD_UPDATE_MAGIC 0x4D474E32
+#define ETH_UPDATE_MAGIC 0x4D474E35
+#define USB_DRIVE_UPGRADE_MAGIC 0x55425355
+#define FIP_UPDATE_MAGIC 0x55464950
+#define UPDATE_DONE_MAGIC 0x50524F47
+#define OTA_MAGIC 0x5245434F
+//#define ALWAYS_USB_DRVIVE_UPGRATE
 #define HEADER_SIZE 64
+#define SECTOR_SIZE 0x200
+#define HEADER_MAGIC "CIMG"
+#define MAX_LOADSIZE (16 * 1024 * 1024)
 #ifdef CONFIG_CMD_SAVEENV
 #define SET_DL_COMPLETE()			\
 	do {							\
@@ -23,27 +31,31 @@
 #endif /* CONFIG_CMD_SAVEENV */
 
 #ifdef CONFIG_NAND_SUPPORT
-static uint32_t lastend;
+static u32 lastend;
 #endif
 
 uint32_t update_magic;
+enum chunk_type_e { dont_care = 0, check_crc };
+enum storage_type_e { sd_dl = 0, usb_dl };
 
-
-#if (!defined CONFIG_TARGET_CVITEK_CV181X_FPGA) && (!defined CONFIG_TARGET_CVITEK_ATHENA2_FPGA) && \
-	(!defined ATHENA2_FPGA_PALLDIUM_ENV)
 static uint32_t bcd2hex4(uint32_t bcd)
 {
 	return ((bcd) & 0x0f) + (((bcd) >> 4) & 0xf0) + (((bcd) >> 8) & 0xf00) + (((bcd) >> 12) & 0xf000);
 }
 
 static int _storage_update(enum storage_type_e type);
-#endif
 
 int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 {
+#if (defined CONFIG_SUP_LARGE_PART_SIZE) && (defined CONFIG_EMMC_SUPPORT)
+	u64 size = *(u64 *)((uintptr_t)file + 4);
+	u64 offset = *(u64 *)((uintptr_t)file + 12);
+	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 28);
+#else
 	uint32_t size = *(uint32_t *)((uintptr_t)file + 4);
 	uint32_t offset = *(uint32_t *)((uintptr_t)file + 8);
-#if (defined CONFIG_SPI_FLASH)/* || (defined CONFIG_NAND_SUPPORT)*/
+#endif
+#if (defined CONFIG_SPI_FLASH) || (defined CONFIG_NAND_SUPPORT)
 	uint32_t part_size = *(uint32_t *)((uintptr_t)file + 12);
 #endif
 	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 16);
@@ -65,8 +77,12 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 #ifdef CONFIG_NAND_SUPPORT
 	int dev = nand_curr_device;
 	struct mtd_info *mtd = nand_info[dev];
-	uint32_t goodblocks = 0, blocks = 0;
+	u32 goodblocks = 0, blocks = 0;
 
+	// erase according part first
+	snprintf(cmd, 255, "nand erase %#x %#x;", offset, part_size);
+	pr_debug("%s\n", cmd);
+	run_command(cmd, 0);
 	// Calculate real offset when programming chunk.
 	if (offset < lastend)
 		offset = lastend;
@@ -84,9 +100,8 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	snprintf(cmd, 255, "nand write %p 0x%x 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
 #elif defined(CONFIG_SPI_FLASH)
-	if (update_magic == SD_UPDATE_MAGIC && (!strcmp(file_name, "fip_spl.bin")
-		|| !strcmp(file_name, "fip.bin")
-		|| !strcmp(file_name, "boot.spinor"))) {
+	if (update_magic == SD_UPDATE_MAGIC && (!strcmp(file_name, "fip_spl.bin") ||
+						!strcmp(file_name, "boot.spinor"))) {
 		snprintf(cmd, 255, "sf update %p 0x%x 0x%x",
 			 (void *)file + chunk_header_size, offset, size);
 	} else {
@@ -94,7 +109,7 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 		pr_debug("%s\n", cmd);
 		run_command(cmd, 0);
 		snprintf(cmd, 255, "sf write %p 0x%x 0x%x",
-			 (void *)file + chunk_header_size, offset, size);
+		 (void *)file + chunk_header_size, offset, size);
 	}
 #else
 	if (size & (SECTOR_SIZE - 1))
@@ -102,8 +117,13 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 
 	size = size / SECTOR_SIZE;
 	offset = offset / SECTOR_SIZE;
+#if (defined CONFIG_SUP_LARGE_PART_SIZE) && (defined CONFIG_EMMC_SUPPORT)
+	snprintf(cmd, 255, "mmc write %p 0x%llx 0x%llx",
+		 (void *)file + chunk_header_size, offset, size);
+#else
 	snprintf(cmd, 255, "mmc write %p 0x%x 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
+#endif
 #endif
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);
@@ -113,8 +133,6 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	return size;
 }
 
-#if (!defined CONFIG_TARGET_CVITEK_CV181X_FPGA) && (!defined CONFIG_TARGET_CVITEK_ATHENA2_FPGA) && \
-	(!defined ATHENA2_FPGA_PALLDIUM_ENV)
 static int _checkHeader(char *file, char strStorage[10])
 {
 	char *magic = (void *)HEADER_ADDR;
@@ -146,8 +164,8 @@ static int _checkHeader(char *file, char strStorage[10])
 #endif
 	for (int i = 0; i < total_chunk; i++) {
 		uint32_t load_size = file_sz > (MAX_LOADSIZE + chunk_sz) ?
-				     MAX_LOADSIZE + chunk_sz :
-				     file_sz;
+						   MAX_LOADSIZE + chunk_sz :
+						   file_sz;
 		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0x%x;", strStorage,
 			 (void *)UPDATE_ADDR, file, load_size, pos);
 		pr_debug("%s\n", cmd);
@@ -186,11 +204,7 @@ static int _storage_update(enum storage_type_e type)
 #endif
 		snprintf(cmd, 255, "mmc dev %u:1 SD_HS", sd_index);
 		run_command(cmd, 0);
-#if defined(CONFIG_SPL)
 		strcpy(fip_name, "fip_spl.bin");
-#else
-		strcpy(fip_name, "fip.bin");
-#endif
 		snprintf(cmd, 255, "fatload %s %p %s;", strStorage,
 			 (void *)HEADER_ADDR, fip_name);
 		ret = run_command(cmd, 0);
@@ -230,20 +244,16 @@ static int _storage_update(enum storage_type_e type)
 		run_command(cmd, 0);
 		snprintf(cmd, 255, "mmc write %p 0x800 0x800;;",
 			 (void *)HEADER_ADDR);
-		ret = run_command(cmd, 0);
+		run_command(cmd, 0);
 		printf("Program fip.bin done\n");
 		// Switch to user partition
 		run_command("mmc dev 0 0", 0);
 #endif
-		if (ret == 0)
-			SET_DL_COMPLETE();
-		else
-			return ret;
 	}
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
 			 (void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
-		pr_debug("%s\n", cmd);
+		printf("%s\n", cmd);
 		ret = run_command(cmd, 0);
 		if (ret) {
 			printf("load %s failed, skip it!\n", imgs[i]);
@@ -252,6 +262,8 @@ static int _storage_update(enum storage_type_e type)
 		if (_checkHeader(imgs[i], strStorage))
 			continue;
 	}
+	if (ret == 0)
+		SET_DL_COMPLETE();
 	return 0;
 }
 
@@ -302,121 +314,16 @@ static int _usb_update(uint32_t usb_pid)
 	};
 	return 0;
 }
-#endif
-
-DECLARE_GLOBAL_DATA_PTR;
-static void set_baudrate(unsigned int baudrate)
-{
-	mdelay(50);
-	gd->baudrate = baudrate;
-	serial_setbrg();
-	mdelay(50);
-}
-
-int uart_download(void *buf, const char *filename)
-{
-	int ret = 0;
-	char cmd[255] = { '\0' };
-
-	snprintf(cmd, 255, "loadb %p %d ", (void *)HEADER_ADDR, UART_DL_BAUDRATE);
-	ret = run_command(cmd, 0);
-	if (ret)
-		return ret;
-
-	char *magic = (void *)HEADER_ADDR;
-
-	if (!strncmp(magic, "O", 1)) {
-		printf("File %s not exist, skip it!\n", filename);
-		return ret;
-	}
-
-	uint32_t chunk_header_sz = *(uint32_t *)((uintptr_t)HEADER_ADDR + 8);
-
-	ret = strncmp(magic, HEADER_MAGIC, 4);
-	if (ret) {
-		printf("File %s's magic number is wrong, skip it!\n", filename);
-		return ret;
-	}
-
-	ret = _prgImage((void *)(HEADER_ADDR + HEADER_SIZE), chunk_header_sz, NULL);
-	if (ret == 0) {
-		printf("Program file %s failed!\n", filename);
-		return ret;
-	}
-	return 0;
-}
-
-static int _uart_update(void)
-{
-	int ret = 0;
-	char cmd[255] = { '\0' };
-
-	printf("Start UART downloading... Change boadrate to %d\n", UART_DL_BAUDRATE);
-	set_baudrate(UART_DL_BAUDRATE);
-
-	snprintf(cmd, 255, "loadb %p %d ", (void *)HEADER_ADDR, UART_DL_BAUDRATE);
-	ret = run_command(cmd, 0);
-	if (ret) {
-		printf("Download fip.bin failed!\n");
-		return ret;
-	}
-
-#ifdef CONFIG_NAND_SUPPORT
-	snprintf(cmd, 255, "cvi_sd_update %p spinand fip", (void *)UPDATE_ADDR);
-	pr_debug("%s\n", cmd);
-	ret = run_command(cmd, 0);
-#elif defined(CONFIG_SPI_FLASH)
-	ret = run_command("sf probe", 0);
-	snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR)
-	pr_debug("%s\n", cmd);
-	ret = run_command(cmd, 0);
-#else
-	// Switch to boot partition
-	ret = run_command("mmc dev 0 1", 0);
-	snprintf(cmd, 255, "mmc write %p 0 0x800;", (void *)UPDATE_ADDR);
-	pr_debug("%s\n", cmd);
-	ret = run_command(cmd, 0);
-	snprintf(cmd, 255, "mmc write %p 0x800 0x800;", (void *)UPDATE_ADDR);
-	pr_debug("%s\n", cmd);
-	ret = run_command(cmd, 0);
-	// Switch to user partition
-	ret = run_command("mmc dev 0 0", 0);
-#endif
-	if (ret) {
-		printf("Program fip.bin failed!\n");
-		return ret;
-	}
-
-	SET_DL_COMPLETE();
-	printf("Program fip.bin done\n");
-
-	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
-		ret = uart_download((void *)HEADER_ADDR, imgs[i]);
-		if (ret) {
-			printf("Load %s failed, skip it!\n", imgs[i]);
-			continue;
-		}
-	}
-	// set_baudrate(CONFIG_BAUDRATE);
-
-	return ret;
-}
 
 static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char *const argv[])
 {
-
-#if (!defined CONFIG_TARGET_CVITEK_CV181X_FPGA) && (!defined CONFIG_TARGET_CVITEK_ATHENA2_FPGA) && \
-	(!defined ATHENA2_FPGA_PALLDIUM_ENV)
 	int ret = 1;
 	uint32_t usb_pid = 0;
 
 	if (argc == 1) {
 		update_magic = readl((unsigned int *)BOOT_SOURCE_FLAG_ADDR);
-		if (update_magic == UART_UPDATE_MAGIC) {
-			run_command("env default -a", 0);
-			ret = _uart_update();
-		} else if (update_magic == SD_UPDATE_MAGIC) {
+		if (update_magic == SD_UPDATE_MAGIC) {
 			run_command("env default -a", 0);
 			ret = _storage_update(sd_dl);
 		} else if (update_magic == USB_UPDATE_MAGIC) {
@@ -428,11 +335,34 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 	} else {
 		printf("Usage:\n%s\n", cmdtp->usage);
 	}
+#if defined(CONFIG_MMC_SKIP_TUNING)
+	uint32_t tuning_tap_reg, emmc_tuning_tap;
+	uint32_t update_load_addr;
+	uint32_t et_part_offset = 4 * 1024 * 1024 - 512;	//tunning tap save to eMMC boot1 last block
+	char cmd[255] = { '\0' };
 
-	return ret;
-#else
-	return 0;
+	emmc_tuning_tap = env_get_hex("tuning_tap", 0);
+	if (emmc_tuning_tap == 0) {
+		tuning_tap_reg = (readl((unsigned int *)0x4300240) >> 16) & 0x7F;
+		printf("uboot: tuning tap: 0x%x.\n", tuning_tap_reg);
+		update_load_addr = env_get_hex("update_addr", 0);
+
+		//swtich to eMMC boot1
+		run_command("mmc dev 0 1", 0);
+
+		snprintf(cmd, 255, "mw.l 0x%x 0x%x", update_load_addr, tuning_tap_reg);
+		printf("%s.\n", cmd);
+		run_command(cmd, 0);
+
+		snprintf(cmd, 255, "mmc write 0x%x 0x%x 1", update_load_addr, et_part_offset/512);
+		printf("%s.\n", cmd);
+		run_command(cmd, 0);
+
+		env_set_hex("tuning_tap", tuning_tap_reg);
+		env_save();
+	}
 #endif
+	return ret;
 }
 
 U_BOOT_CMD(

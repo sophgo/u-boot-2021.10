@@ -6,6 +6,8 @@
 #ifndef _CVI_MIPI_H_
 #define _CVI_MIPI_H_
 
+#include "cvi_disp.h"
+
 #define CMD_MAX_NUM    100
 #define RX_MAX_NUM     4
 #define LANE_MAX_NUM   5
@@ -43,20 +45,6 @@ enum mipi_tx_lane_id {
 	MIPI_TX_LANE_2,
 	MIPI_TX_LANE_3,
 	MIPI_TX_LANE_MAX,
-};
-
-struct sync_info_s {
-	unsigned short  vid_hsa_pixels;
-	unsigned short  vid_hbp_pixels;
-	unsigned short  vid_hfp_pixels;
-	unsigned short  vid_hline_pixels;
-	unsigned short  vid_vsa_lines;
-	unsigned short  vid_vbp_lines;
-	unsigned short  vid_vfp_lines;
-	unsigned short  vid_active_lines;
-	unsigned short  edpi_cmd_size;
-	bool            vid_vsa_pos_polarity;
-	bool            vid_hsa_pos_polarity;
 };
 
 /*

@@ -19,7 +19,6 @@
 #include <fdt_support.h>
 #include <exports.h>
 #include <fdtdec.h>
-#include <linux/stringify.h>
 
 /**
  * fdt_getprop_u32_default_node - Return a node's property or a default
@@ -293,11 +292,10 @@ int fdt_chosen(void *fdt)
 	nodeoffset = fdt_find_or_add_subnode(fdt, 0, "chosen");
 	if (nodeoffset < 0)
 		return nodeoffset;
-#ifdef CONFIG_SPL_BUILD
+
+	// str = board_fdt_chosen_bootargs();
 	str = CVI_SPL_BOOTAGRS;
-#else
-	str = board_fdt_chosen_bootargs();
-#endif
+
 	if (str) {
 		err = fdt_setprop(fdt, nodeoffset, "bootargs", str,
 				  strlen(str) + 1);

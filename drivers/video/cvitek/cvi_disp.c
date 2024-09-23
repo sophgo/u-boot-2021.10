@@ -42,17 +42,17 @@ static int cvi_vo_ofdata_to_platdata(struct udevice *dev)
 
 	priv->regs_sc = devfdt_get_addr_name(dev, "sc");
 	if (priv->regs_sc == FDT_ADDR_T_NONE) {
-		printf("%s: Get VO sc address failed (ret=%llu)\n", __func__, (u64)priv->regs_sc);
+		debug("%s: Get VO sc address failed (ret=%llu)\n", __func__, (u64)priv->regs_sc);
 		return -ENXIO;
 	}
 	priv->regs_vip = devfdt_get_addr_name(dev, "vip_sys");
 	if (priv->regs_vip == FDT_ADDR_T_NONE) {
-		printf("%s: Get dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_vip);
+		debug("%s: Get dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_vip);
 		return -ENXIO;
 	}
 	priv->regs_dphy = devfdt_get_addr_name(dev, "dphy");
 	if (priv->regs_dphy == FDT_ADDR_T_NONE) {
-		printf("%s: Get MIPI dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_dphy);
+		debug("%s: Get MIPI dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_dphy);
 		return -ENXIO;
 	}
 	debug("%s: base(sc)=%#llx base(vip)=%#llx base(dphy)=%#llx\n", __func__
@@ -67,6 +67,8 @@ static int cvi_vo_probe(struct udevice *dev)
 	struct cvi_vo_priv *priv = dev_get_priv(dev);
 	int ret = 0;
 
+	debug("%s: start\n", __func__);
+
 	/* Before relocation we don't need to do anything */
 	if (!(gd->flags & GD_FLG_RELOC))
 		return 0;
@@ -78,28 +80,27 @@ static int cvi_vo_probe(struct udevice *dev)
 #ifdef BOOTLOGO_ISP_RESET
 	vip_isp_clk_reset();
 #endif
-
 	sclr_ctrl_init();
 	sclr_ctrl_set_disp_src(false);
 
 	ret = gpio_request_by_name(dev, "reset-gpio", 0, &priv->ctrl_gpios.disp_reset_gpio,
 				   GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	if (ret) {
-		printf("%s: Warning: cannot get reset GPIO: ret=%d\n", __func__, ret);
+		debug("%s: Warning: cannot get reset GPIO: ret=%d\n", __func__, ret);
 		if (ret != -ENOENT)
 			return ret;
 	}
 	ret = gpio_request_by_name(dev, "pwm-gpio", 0, &priv->ctrl_gpios.disp_pwm_gpio,
 				   GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	if (ret) {
-		printf("%s: Warning: cannot get pwm GPIO: ret=%d\n", __func__, ret);
+		debug("%s: Warning: cannot get pwm GPIO: ret=%d\n", __func__, ret);
 		if (ret != -ENOENT)
 			return ret;
 	}
 	ret = gpio_request_by_name(dev, "power-ct-gpio", 0, &priv->ctrl_gpios.disp_power_ct_gpio,
 				   GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	if (ret) {
-		printf("%s: Warning: cannot get power GPIO: ret=%d\n", __func__, ret);
+		debug("%s: Warning: cannot get power GPIO: ret=%d\n", __func__, ret);
 		if (ret != -ENOENT)
 			return ret;
 	}

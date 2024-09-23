@@ -13,7 +13,7 @@
 #include "reg.h"
 #include "vip_common.h"
 #include "scaler.h"
-#include "cvi_i80_hw.h"
+#include "cvi_hw_i80.h"
 #include "dsi_phy.h"
 
 #include "mmio.h"
@@ -155,7 +155,7 @@ static void _fill_disp_timing(struct sclr_disp_timing *timing, const struct sync
 	timing->hmde_end = timing->hfde_end;
 }
 
-int hw_mcu_cmd_send(const struct VO_I80_HW_INSTR_S *instr, int size)
+int hw_mcu_cmd_send(const HW_I80_INSTR_S *instr, int size)
 {
 	int i = 0;
 	unsigned int sw_cmd0, sw_cmd1, sw_cmd2, sw_cmd3;
@@ -183,14 +183,14 @@ int hw_mcu_cmd_send(const struct VO_I80_HW_INSTR_S *instr, int size)
 			sw_cmd3 = (instr[i + 3].data_type << 8) | instr[i + 3].data;
 			i80_set_cmd3(sw_cmd3);
 		}
-		// printf("set cmd cnt [%d]\n",cmd_cnt);
+		printf("set cmd cnt [%d]\n",cmd_cnt);
 		i80_set_cmd_cnt(cmd_cnt);
 		i80_trig();
 	}
 	return 0;
 }
 
-int i80_hw_init(const struct VO_I80_HW_CFG_S *i80_hw_cfg)
+int i80_hw_init(int dev, const HW_I80_CFG_S *i80_hw_cfg)
 {
 	struct sclr_disp_timing timing;
 	struct disp_ctrl_gpios ctrl_gpios;
@@ -232,21 +232,23 @@ int i80_hw_init(const struct VO_I80_HW_CFG_S *i80_hw_cfg)
 	}
 	mdelay(100);
 
+	sclr_disp_set_mcu_disable(i80_hw_cfg->mode);
+
 	sclr_disp_mux_sel(SCLR_VO_SEL_I80_HW);
 
 	_disp_sel_remux(i80_hw_cfg->pins.d_pins, i80_hw_cfg->pins.pin_num);
 
 	sclr_disp_set_intf(SCLR_VO_INTF_I80_HW);
 
-	u32 pixelclock = 60 * (i80_hw_cfg->sync_info.vid_vsa_lines + i80_hw_cfg->sync_info.vid_vbp_lines
-					   + i80_hw_cfg->sync_info.vid_active_lines + i80_hw_cfg->sync_info.vid_vfp_lines)
-					* (i80_hw_cfg->sync_info.vid_hsa_pixels + i80_hw_cfg->sync_info.vid_hbp_pixels
-					   + i80_hw_cfg->sync_info.vid_hline_pixels + i80_hw_cfg->sync_info.vid_hfp_pixels) / 1000;
+	u32 pixelclock = i80_hw_cfg->u16FrameRate * (i80_hw_cfg->sync_info.vid_vsa_lines + i80_hw_cfg->sync_info.vid_vbp_lines
+						+ i80_hw_cfg->sync_info.vid_active_lines + i80_hw_cfg->sync_info.vid_vfp_lines)
+						* (i80_hw_cfg->sync_info.vid_hsa_pixels + i80_hw_cfg->sync_info.vid_hbp_pixels
+						+ i80_hw_cfg->sync_info.vid_hline_pixels + i80_hw_cfg->sync_info.vid_hfp_pixels) / 1000;
 
-	if (i80_hw_cfg->mode == VO_I80_HW_MODE_RGB565) {
+	if (i80_hw_cfg->mode == VO_MCU_MODE_RGB565) {
 		dphy_dsi_set_pll(pixelclock * 4, 4, 24);
 		vip_sys_clk_setting(0x10080);
-	} else if (i80_hw_cfg->mode == VO_I80_HW_MODE_RGB888) {
+	} else if (i80_hw_cfg->mode == VO_MCU_MODE_RGB888) {
 		dphy_dsi_set_pll(pixelclock * 6, 4, 24);
 		vip_sys_clk_setting(0x100c0);
 	}

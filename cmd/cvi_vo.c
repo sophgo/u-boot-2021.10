@@ -22,7 +22,7 @@
 
 enum sclr_vo_intf intf_type = SCLR_VO_INTF_MIPI;
 
-static int lvds_panel_init(struct cvi_lvds_cfg_s *lvds_cfg)
+static int lvds_panel_init(const VO_LVDS_ATTR_S *lvds_cfg)
 {
 	int ret = 0;
 #ifdef CONFIG_DISPLAY_CVITEK_LVDS
@@ -31,7 +31,7 @@ static int lvds_panel_init(struct cvi_lvds_cfg_s *lvds_cfg)
 	return ret;
 }
 
-int i80_init(int devno, const struct _VO_I80_INSTR_S *cmds, int size)
+int i80_init(int devno, const SW_I80_INSTR_S *cmds, int size)
 {
 	int ret = 0;
 	unsigned int sw_cmd;
@@ -116,7 +116,7 @@ static void dsi_panel_init_adaptivity(void)
 	mipi_tx_set_combo_dev_cfg((struct combo_dev_cfg_s *)&dev_cfg_hx8394_720x1280);
 
 	dsi_get_panel_id(0, &panelid);
-	debug("[DBG] dsi_get_panel_id: 0x%X\n", panelid);
+	printf("[DBG] dsi_get_panel_id: 0x%X\n", panelid);
 
 	switch (panelid) {
 	case 0xF9483:
@@ -197,8 +197,8 @@ static int do_startvo(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 	break;
 
 	case VO_INTF_I80:
-		intf_type = SCLR_VO_INTF_I80;
-		i80_set_combo_dev_cfg(panel_desc.i80_cfg);
+		intf_type = SCLR_VO_INTF_I80_SW;
+		i80_set_combo_dev_cfg(panel_desc.i80_sw_cfg);
 		i80_set_sw_mode(1);
 		i80_init(0, panel_desc.i80_init_cmds, panel_desc.i80_init_cmds_size);
 		i80_set_sw_mode(0);
@@ -207,7 +207,7 @@ static int do_startvo(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 
 	case VO_INTF_I80_HW:
 		intf_type = SCLR_VO_INTF_I80_HW;
-		i80_hw_init(panel_desc.i80_hw_cfg);
+		i80_hw_init(dev, panel_desc.i80_hw_cfg);
 	break;
 
 	case VO_INTF_LCD_18BIT:
@@ -302,20 +302,20 @@ static int do_startvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 		cfg->mem.height = rect.h;
 		cfg->mem.pitch_y = ALIGN(stride, 32);
 		cfg->mem.pitch_c = ALIGN(stride >> 1, 32);
-	} else if (intf_type == SCLR_VO_INTF_I80) {
+	} else if (intf_type == SCLR_VO_INTF_I80_SW) {
 		unsigned char *in = (unsigned char *)(addr_in);
 		unsigned char *out = (unsigned char *)(addr_out);
 		unsigned short w = (*(in + 25) << 24) | (*(in + 24) << 16) | (*(in + 23) << 8) | *(in + 22);
 		unsigned short h = (*(in + 21) << 24) | (*(in + 20) << 16) | (*(in + 19) << 8) | *(in + 18);
 
-		debug("%c, %c, w:%d, h:%d\n", *in, *(in + 1), w, h);
-		debug("in:%p, out:%p\n", in, out);
+		printf("%c, %c, w:%d, h:%d\n", *in, *(in + 1), w, h);
+		printf("in:%p, out:%p\n", in, out);
 
 		if (*(in) == 'B' && *(in + 1) == 'M' && w == rect.w && h == rect.h) {
-			debug("this is a bmp && %d*%d\n", h, w);
+			printf("this is a bmp && %d*%d\n", h, w);
 			in = in + 54;	 //Remove the bmp header
 		} else {
-			debug("no bmp or rect not match, display white!\n");
+			printf("no bmp or rect not match, display white!\n");
 			in = in + 54;
 			memset(in + 54, 0xFF, rect.w * rect.h * 3);
 		}
@@ -337,15 +337,15 @@ static int do_startvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 
 	sclr_disp_set_cfg(cfg);
 
-	if (intf_type == SCLR_VO_INTF_I80) {
+	if (intf_type == SCLR_VO_INTF_I80_SW) {
 		sclr_disp_reg_force_up();
 		i80_set_run();
 	}
 
 	sclr_disp_enable_window_bgcolor(false);
-	debug("\nstart vl(%d) addr_in(%#llx) addr_out(%#llx) stride(%d) rect(%d %d %d %d)!\n"
+	printf("\nstart vl(%d) addr_in(%#llx) addr_out(%#llx) stride(%d) rect(%d %d %d %d)!\n"
 		, layer, addr_in, addr_out, stride, rect.x, rect.y, rect.w, rect.h);
-	debug("\nstart vl cfg->mem.addr(%#llx-%#llx-%#llx) pitch_y:%d pitch_c:%d.\n"
+	printf("\nstart vl cfg->mem.addr(%#llx-%#llx-%#llx) pitch_y:%d pitch_c:%d.\n"
 		, cfg->mem.addr0, cfg->mem.addr1, cfg->mem.addr2, cfg->mem.pitch_y, cfg->mem.pitch_c);
 
 	return CMD_RET_SUCCESS;

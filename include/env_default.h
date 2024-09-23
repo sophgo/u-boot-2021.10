@@ -47,6 +47,7 @@ const uchar default_environment[] = {
 	"nandboot="	CONFIG_NANDBOOTCOMMAND		"\0"
 #endif
 #ifdef	CONFIG_EMMCBOOTCOMMAND
+	"tuning_tap="	__stringify(0)			"\0"
 	"emmcboot="	CONFIG_EMMCBOOTCOMMAND		"\0"
 #endif
 #ifdef	CONFIG_NORBOOTCOMMAND

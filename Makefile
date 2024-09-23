@@ -17,7 +17,6 @@ NAME =
 MAKEFLAGS += -rR
 
 # Determine target architecture for the sandbox
--include  ${BUILD_PATH}/.config
 include include/host_arch.h
 ifeq ("", "$(CROSS_COMPILE)")
   MK_ARCH="${shell uname -m}"
@@ -328,14 +327,14 @@ os_x_before	= $(shell if [ $(DARWIN_MAJOR_VERSION) -le $(1) -a \
 	$(DARWIN_MINOR_VERSION) -le $(2) ] ; then echo "$(3)"; else echo "$(4)"; fi ;)
 
 os_x_after = $(shell if [ $(DARWIN_MAJOR_VERSION) -ge $(1) -a \
-	$(DARWIN_MINOR_VERSION) -ge $(2) ] ; then echo "$(3)"; else echo "$(4)"; fi ;)
+	$(DARWIN_MINOR_VERSION) -ge $(2) ] ; then echo "$(3)"; else echo "$(4)"; fi ;)	
 
 # Snow Leopards build environment has no longer restrictions as described above
 HOSTCC       = $(call os_x_before, 10, 5, "cc", "gcc")
 KBUILD_HOSTCFLAGS  += $(call os_x_before, 10, 4, "-traditional-cpp")
 KBUILD_HOSTLDFLAGS += $(call os_x_before, 10, 5, "-multiply_defined suppress")
 
-# macOS Mojave (10.14.X)
+# macOS Mojave (10.14.X) 
 # Undefined symbols for architecture x86_64: "_PyArg_ParseTuple"
 KBUILD_HOSTLDFLAGS += $(call os_x_after, 10, 14, "-lpython -dynamclib", "")
 endif
@@ -431,11 +430,11 @@ KBUILD_CFLAGS	+= -fshort-wchar -fno-strict-aliasing
 KBUILD_CFLAGS	+= -Werror
 KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_LDFLAGS  :=
-
-
-ifdef CONFIG_ENABLE_ALIOS_UPDATE
-KBUILD_CFLAGS += -DCONFIG_ENABLE_ALIOS_UPDATE
+-include  ${BUILD_PATH}/.config
+ifdef CONFIG_MIRROR_2ND_PACK_HEAD
+KBUILD_CFLAGS += -DCONFIG_MIRROR_2ND_PACK_HEAD
 endif
+
 
 ifeq ($(cc-name),clang)
 ifneq ($(CROSS_COMPILE),)
@@ -959,14 +958,14 @@ else
 ifeq ($(CONFIG_MX7)$(CONFIG_IMX_HAB), yy)
 INPUTS-$(CONFIG_SPL_FRAMEWORK) += u-boot-ivt.img
 else
-INPUTS-$(CONFIG_SPL_FRAMEWORK) += u-boot.img
+# INPUTS-$(CONFIG_SPL_FRAMEWORK) += u-boot.img
 endif
 endif
 INPUTS-$(CONFIG_TPL) += tpl/u-boot-tpl.bin
 INPUTS-$(CONFIG_OF_SEPARATE) += u-boot.dtb
 INPUTS-$(CONFIG_BINMAN_STANDALONE_FDT) += u-boot.dtb
 ifeq ($(CONFIG_SPL_FRAMEWORK),y)
-INPUTS-$(CONFIG_OF_SEPARATE) += u-boot-dtb.img
+# INPUTS-$(CONFIG_OF_SEPARATE) += u-boot-dtb.img
 endif
 INPUTS-$(CONFIG_OF_HOSTFILE) += u-boot.dtb
 ifneq ($(CONFIG_SPL_TARGET),)
@@ -1101,9 +1100,9 @@ PHONY += inputs
 inputs: $(INPUTS-y)
 
 all: .binman_stamp inputs
-ifeq ($(CONFIG_BINMAN),y)
-	$(call if_changed,binman)
-endif
+# ifeq ($(CONFIG_BINMAN),y)
+# 	$(call if_changed,binman)
+# endif
 
 # Timestamp file to make sure that binman always runs
 .binman_stamp: FORCE

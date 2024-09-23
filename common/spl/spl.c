@@ -176,8 +176,7 @@ __weak void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 	// Save kernel start time
 	board_save_time_record(TIME_RECORDS_FIELD_KERNEL_START);
 #if CONFIG_IS_ENABLED(LOAD_FIT) || CONFIG_IS_ENABLED(LOAD_FIT_FULL)
-	debug("flags=%d, entry_point=0x%lx, fdt_addr=0x%p\n",
-		spl_image->flags, spl_image->entry_point, spl_image->fdt_addr);
+	debug("flags=%d, entry_point=0x%lx, fdt_addr=0x%p\n", spl_image->flags, spl_image->entry_point, spl_image->fdt_addr);
 	image_entry(0, spl_image->fdt_addr);
 #else
 	image_entry(spl_image->flags,  0);
@@ -510,9 +509,11 @@ static int spl_common_init(bool setup_malloc)
 			return ret;
 		}
 	}
+
 	if (CONFIG_IS_ENABLED(DM)) {
 		bootstage_start(BOOTSTAGE_ID_ACCUM_DM_SPL,
 				spl_phase() == PHASE_TPL ? "dm tpl" : "dm_spl");
+
 		/* With CONFIG_SPL_OF_PLATDATA, bring in all devices */
 		ret = dm_init_and_scan(!CONFIG_IS_ENABLED(OF_PLATDATA));
 		bootstage_accum(BOOTSTAGE_ID_ACCUM_DM_SPL);
@@ -574,7 +575,10 @@ int spl_init(void)
 __weak void board_boot_order(u32 *spl_boot_list)
 {
 	// spl_boot_list[0] = spl_boot_device();
-	 spl_boot_list[0] = BOOT_DEVICE_NOR;
+	spl_boot_list[0] = BOOT_DEVICE_NOR;
+	spl_boot_list[1] = BOOT_DEVICE_NAND;
+	spl_boot_list[2] = BOOT_DEVICE_MMC1;
+	spl_boot_list[3] = BOOT_DEVICE_MMC2;
 }
 
 static struct spl_image_loader *spl_ll_find_loader(uint boot_device)
@@ -651,7 +655,7 @@ static int boot_from_devices(struct spl_image_info *spl_image,
 				printf(SPL_TPL_PROMPT
 				       "Unsupported Boot Device %d\n", bootdev);
 			else
-				puts(SPL_TPL_PROMPT "Unsupported Boot Device!\n");
+				debug(SPL_TPL_PROMPT "Unsupported Boot Device!\n");
 		}
 		if (loader && !spl_load_image(spl_image, loader)) {
 			spl_image->boot_device = bootdev;
@@ -666,6 +670,8 @@ static int boot_from_devices(struct spl_image_info *spl_image,
 void board_init_f(ulong dummy)
 {
 	board_save_time_record(TIME_RECORDS_FIELD_UBOOT_START);
+	preloader_console_init();
+
 #ifdef CONFIG_ARM64
 	extern ulong __image_copy_start;
 	gd->relocaddr = (ulong)&__image_copy_start;
@@ -683,8 +689,6 @@ void board_init_f(ulong dummy)
 			hang();
 		}
 	}
-
-	preloader_console_init();
 }
 #endif
 
@@ -704,6 +708,9 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 
 	spl_set_bd();
 	board_init();
+#ifdef CONFIG_ARCH_EARLY_INIT_R
+	arch_early_init_r();
+#endif
 
 #if defined(CONFIG_SYS_SPL_MALLOC_START)
 	mem_malloc_init(CONFIG_SYS_SPL_MALLOC_START,
@@ -749,9 +756,9 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 	initr_watchdog();
 #endif
 
-//	if (IS_ENABLED(CONFIG_SPL_OS_BOOT) || CONFIG_IS_ENABLED(HANDOFF) ||
-//		IS_ENABLED(CONFIG_SPL_ATF))
-//			dram_init_banksize();
+	// if (IS_ENABLED(CONFIG_SPL_OS_BOOT) || CONFIG_IS_ENABLED(HANDOFF) ||
+	// 	IS_ENABLED(CONFIG_SPL_ATF))
+	// 		dram_init_banksize();
 
 	bootcount_inc();
 	board_save_time_record(TIME_RECORDS_FIELD_BOOTCMD_START);

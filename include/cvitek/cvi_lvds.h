@@ -6,11 +6,11 @@
 #ifndef _CVI_LVDS_H_
 #define _CVI_LVDS_H_
 
-#include "cvi_mipi.h"
+#include "cvi_disp.h"
 
 #define LANE_MAX_NUM   5
 
-enum lvds_lane_id {
+enum VO_LVDS_LANE_ID {
 	VO_LVDS_LANE_CLK = 0,
 	VO_LVDS_LANE_0,
 	VO_LVDS_LANE_1,
@@ -19,34 +19,30 @@ enum lvds_lane_id {
 	VO_LVDS_LANE_MAX,
 };
 
-enum LVDS_OUT_BIT {
-	LVDS_OUT_6BIT = 0,
-	LVDS_OUT_8BIT,
-	LVDS_OUT_10BIT,
-	LVDS_OUT_MAX,
+enum VO_LVDS_OUT_BIT_E {
+	VO_LVDS_OUT_6BIT = 0,
+	VO_LVDS_OUT_8BIT,
+	VO_LVDS_OUT_10BIT,
+	VO_LVDS_OUT_MAX,
 };
 
-enum LVDS_MODE {
-	LVDS_MODE_JEIDA = 0,
-	LVDS_MODE_VESA,
-	LVDS_MODE_MAX,
+enum VO_LVDS_MODE_E {
+	VO_LVDS_MODE_JEIDA = 0,
+	VO_LVDS_MODE_VESA,
+	VO_LVDS_MODE_MAX,
 };
 
-/*
- * @pixelclock: pixel clock in kHz
- */
-struct cvi_lvds_cfg_s {
-	enum LVDS_OUT_BIT       out_bits;
-	enum LVDS_MODE          mode;
-	unsigned char           chn_num;
-	bool                    data_big_endian;
-	enum lvds_lane_id       lane_id[LANE_MAX_NUM];
-	bool                    lane_pn_swap[LANE_MAX_NUM];
+typedef struct _VO_LVDS_ATTR_S {
+	enum VO_LVDS_MODE_E lvds_vesa_mode;
+	enum VO_LVDS_OUT_BIT_E out_bits;
+	u8 chn_num;
+	bool data_big_endian;
+	enum VO_LVDS_LANE_ID lane_id[VO_LVDS_LANE_MAX];
+	bool lane_pn_swap[VO_LVDS_LANE_MAX];
 	struct sync_info_s      sync_info;
 	unsigned short          u16FrameRate;
-	unsigned int            pixelclock;
-};
+} VO_LVDS_ATTR_S;
 
-int lvds_init(struct cvi_lvds_cfg_s *lvds_cfg);
+int lvds_init(const VO_LVDS_ATTR_S *lvds_cfg);
 
 #endif // _CVI_LVDS_H_

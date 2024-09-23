@@ -22,7 +22,6 @@
 #include "cv181x_pinlist_swconfig.h"
 #include <linux/delay.h>
 #include <bootstage.h>
-#include <configs/cv181x-asic.h>
 
 #if defined(__riscv)
 #include <asm/csr.h>
@@ -215,40 +214,11 @@ void cpu_pwr_ctrl(void)
 
 int board_init(void)
 {
-/*
-** The default value of uart clk is 25M
-** If the UART CLK changes, you need to change the CLK source in DTS and cv181x-asic.h
-** eg:
-** cv181x-asic.h: #define CONFIG_SYS_NS16550_CLK		1188000000
-**
-** cv181x_base.dtsi: uart0 ~ uart4
-** uart0: serial@04140000 {
-**	compatible = "snps,dw-apb-uart";
-**	reg = <0x0 0x04140000 0x0 0x1000>;
-**	clock-frequency = <1188000000>;
-**	reg-shift = <2>;
-**	reg-io-width = <4>;
-**	status = "okay";
-**};
-*/
-#if CONFIG_SYS_NS16550_CLK == 396000000
-	mmio_write_32(DIV_CLK_CAM0_200 , BIT_DIV_RESET_CONT | BIT_SELT_DIV_REG | BIT_CLK_SRC |\
-	 BIT_CLK_DIV_FACT_16 | BIT_CLK_DIV_FACT_17);
-#elif CONFIG_SYS_NS16550_CLK == 594000000
-	mmio_write_32(DIV_CLK_CAM0_200 , BIT_DIV_RESET_CONT | BIT_SELT_DIV_REG | BIT_CLK_SRC |\
-	 BIT_CLK_DIV_FACT_17);
-#elif CONFIG_SYS_NS16550_CLK == 1188000000
-	mmio_write_32(DIV_CLK_CAM0_200 , BIT_DIV_RESET_CONT | BIT_SELT_DIV_REG | BIT_CLK_SRC |\
-	 BIT_CLK_DIV_FACT_16);
-#endif
-
-#ifndef CONFIG_TARGET_CVITEK_CV181X_FPGA
 	extern volatile uint32_t BOOT0_START_TIME;
 	uint16_t start_time = DIV_ROUND_UP(BOOT0_START_TIME, SYS_COUNTER_FREQ_IN_SECOND / 1000);
 
 	// Save uboot start time. time is from boot0.h
 	mmio_write_16(TIME_RECORDS_FIELD_UBOOT_START, start_time);
-#endif
 
 	cpu_pwr_ctrl();
 
@@ -264,11 +234,14 @@ int board_init(void)
 #elif defined(CONFIG_EMMC_SUPPORT)
 	pinmux_config(PINMUX_EMMC);
 #endif
+
+/* pinmux config in alios
 #ifdef CONFIG_DISPLAY_CVITEK_MIPI
 	pinmux_config(PINMUX_DSI);
 #elif defined(CONFIG_DISPLAY_CVITEK_LVDS)
 	pinmux_config(PINMUX_LVDS);
 #endif
+*/
 	pinmux_config(PINMUX_SDIO1);
 	cvi_board_init();
 	return 0;
@@ -371,4 +344,9 @@ void board_save_time_record(uintptr_t saveaddr)
 #endif
 
 	mmio_write_16(saveaddr, DIV_ROUND_UP(boot_us, 1000));
+}
+
+struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
+{
+	return (struct image_header *)CVIMMAP_UIMAG_ADDR;
 }

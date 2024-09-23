@@ -335,7 +335,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 		}
 		length = size;
 	} else if (IS_ENABLED(CONFIG_SPL_LZMA) && image_comp == IH_COMP_LZMA) {
-		__maybe_unused SizeT lzma_len = 0x4000000;
+		__maybe_unused SizeT lzma_len=0x4000000;
 		if (lzmaBuffToBuffDecompress((void *)load_ptr, &lzma_len, src, length)) {
 			printf("error [%s : %d] load_ptr=0x%p, lzma_len=0x%lx, src=0x%p, length=0x%lx\n",
 				__func__, __LINE__, load_ptr, lzma_len, src, length);
@@ -384,12 +384,12 @@ static bool os_takes_devicetree(uint8_t os)
 static int spl_image_setup_libfdt(struct spl_image_info image_info, const struct spl_fit_info *ctx)
 {
 	bootm_headers_t images;
-	void *blob = (void *)image_info.load_addr;
+	void *blob=(void *)image_info.load_addr;
 	int of_size = image_info.size;
 	debug("error ctx->fit=0x%p, of_size=0x%x, image_info->size=0x%x\n", blob, of_size, image_info.size);
 	struct lmb *lmb;
-	images.initrd_start = 0;
-	images.initrd_end = 0;
+	images.initrd_start=0;
+	images.initrd_end=0;
 
 	ulong *initrd_start = &images.initrd_start;
 	ulong *initrd_end = &images.initrd_end;
@@ -479,10 +479,8 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	 * Use the address following the image as target address for the
 	 * device tree.
 	 */
-#ifndef CVI_SPL_FDT_SIZE
-#define CVI_SPL_FDT_SIZE 0x100000
-#endif
-	image_info.load_addr = (uintptr_t)malloc(CVI_SPL_FDT_SIZE);
+	image_info.load_addr = CVI_SPL_FDT_ADDR;
+
 	/* Figure out which device tree the board wants to use */
 	node = spl_fit_get_image_node(ctx, FIT_FDT_PROP, index++);
 	if (node < 0) {
@@ -639,13 +637,13 @@ static void *spl_get_fit_load_buffer(size_t size)
 {
 	void *buf;
 
-	return (void *)UIMAG_ADDR;
+	return (void*)UIMAG_ADDR;
 
 	buf = malloc(size);
 	if (!buf) {
-		pr_err("Could not get FIT buffer of %lu bytes\n", (ulong)size);
-		pr_err("\tcheck CONFIG_SYS_SPL_MALLOC_SIZE\n");
-		buf = spl_get_load_buffer(0, size);
+			pr_err("Could not get FIT buffer of %lu bytes\n", (ulong)size);
+			pr_err("\tcheck CONFIG_SYS_SPL_MALLOC_SIZE\n");
+			buf = spl_get_load_buffer(0, size);
 	}
 	return buf;
 }

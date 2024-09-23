@@ -14,11 +14,7 @@ const struct combo_dev_cfg_s dev_cfg_hx8394_720x1280 = {
 #else
 	.lane_id = {MIPI_TX_LANE_0, MIPI_TX_LANE_1, MIPI_TX_LANE_CLK, MIPI_TX_LANE_2, MIPI_TX_LANE_3},
 #endif
-#ifdef CONFIG_MIPI_PANEL_LANE_SWAP
 	.lane_pn_swap = {true, true, true, true, true},
-#else
-	.lane_pn_swap = {false, false, false, false, false},
-#endif
 	.output_mode = OUTPUT_MODE_DSI_VIDEO,
 	.video_mode = BURST_MODE,
 	.output_format = OUT_FORMAT_RGB_24_BIT,
