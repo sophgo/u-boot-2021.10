@@ -415,6 +415,8 @@ void set_product_pinmux(void)
 	if(strstr(dtstype,"sm9v1"))
 	{
 		sm9v1_board_init();
+		mmio_write_32(0x5021004, mmio_read_32(0x5021004) | 0x800);
+		mmio_write_32(0x5021000, mmio_read_32(0x5021000) | 0x800);
 	}else if (strstr(dtstype,"se9b1"))
 	{
 		sm9v1_board_init();
