@@ -293,6 +293,9 @@ void sm9v1_board_init(void)
 	PINMUX_CONFIG(UART1_RTS, GPIO85, G11);
 	mmio_write_32(0x27012004, mmio_read_32(0x27012004) | 0x200000);
 	mmio_write_32(0x27012000, mmio_read_32(0x27012000) | 0x200000);
+	//Power on SM9 VCC_3V3_SYS to make sure phy led active
+	mmio_write_32(0x5021004, mmio_read_32(0x5021004) | 0x800);
+	mmio_write_32(0x5021000, mmio_read_32(0x5021000) | 0x800);
 	//mipi dsi
 	//PINMUX_CONFIG(PAD_MIPI0_TX0P, PAD_MIPI0_TX0P, PHY);
 	//PINMUX_CONFIG(PAD_MIPI0_TX0N, PAD_MIPI0_TX0N, PHY);
@@ -415,8 +418,6 @@ void set_product_pinmux(void)
 	if(strstr(dtstype,"sm9v1"))
 	{
 		sm9v1_board_init();
-		mmio_write_32(0x5021004, mmio_read_32(0x5021004) | 0x800);
-		mmio_write_32(0x5021000, mmio_read_32(0x5021000) | 0x800);
 	}else if (strstr(dtstype,"se9b1"))
 	{
 		sm9v1_board_init();
