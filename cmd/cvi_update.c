@@ -14,7 +14,7 @@
 #define COMPARE_STRING_LEN 3
 #define SD_UPDATE_MAGIC 0x4D474E32
 #define ETH_UPDATE_MAGIC 0x4D474E35
-#define USB_DRIVE_UPGRADE_MAGIC 0x55425355
+#define UDISK_UPGRADE_MAGIC 0x55425355
 #define FIP_UPDATE_MAGIC 0x55464950
 #define UPDATE_DONE_MAGIC 0x50524F47
 #define OTA_MAGIC 0x5245434F
@@ -227,12 +227,80 @@ static int _storage_update(enum storage_type_e type)
 			printf("load %s failed, skip it!\n", imgs[i]);
 			continue;
 		}
+#if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
 		if (_checkHeader(imgs[i], strStorage))
 			continue;
+#endif
+	}
+	return 0;
+}
+
+static int _udisk_update(void)
+{
+	int ret = 0;
+	char cmd[255] = { '\0' };
+	char strStorage[10] = { '\0' };
+
+	run_command("usb start", 0);
+
+	ret = run_command("usb storage", 0);
+	if (ret)
+		return ret;
+
+	strlcpy(strStorage, "usb 0", strlen("usb 0") + 1);
+	snprintf(cmd, 255, "fatload %s %p fip.bin;", strStorage, (void *)HEADER_ADDR);
+	ret = run_command(cmd, 0);
+	if (ret)
+		return ret;
+
+	printf("Start udisk downloading...");
+
+#if defined(CONFIG_NAND_SUPPORT)
+	snprintf(cmd, 255, "cvi_sd_update %p spinand fip", (void *)HEADER_ADDR);
+	ret = run_command(cmd, 0);
+#elif defined(CONFIG_SPI_FLASH)
+	run_command("sf probe", 0);
+	snprintf(cmd, 255,
+		 "sf update %p ${fip_PART_OFFSET} ${filesize};",
+		 (void *)HEADER_ADDR);
+	ret = run_command(cmd, 0);
+#elif defined(CONFIG_EMMC_SUPPORT)
+	// Switch to boot partition
+	run_command("mmc dev 0 1", 0);
+	snprintf(cmd, 255, "mmc write %p 0 0x800;",
+		 (void *)HEADER_ADDR);
+	run_command(cmd, 0);
+	snprintf(cmd, 255, "mmc write %p 0x800 0x800;;",
+		 (void *)HEADER_ADDR);
+	run_command(cmd, 0);
+	printf("Program fip.bin done\n");
+	// Switch to user partition
+	run_command("mmc dev 0 0", 0);
+#endif
+	if (ret == 0)
+		SET_DL_COMPLETE();
+	else
+		return ret;
+
+	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
+		WATCHDOG_RESET();
+		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
+			 (void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
+		pr_debug("%s\n", cmd);
+		ret = run_command(cmd, 0);
+		if (ret) {
+			printf("load %s failed, skip it!\n", imgs[i]);
+			continue;
+		}
+#if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
+		if (_checkHeader(imgs[i], strStorage))
+			continue;
+#endif
 	}
 	return 0;
 }
 #endif
+
 static int _usb_update(uint32_t usb_pid)
 {
 	int ret = 0;
@@ -310,6 +378,25 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			run_command("env default -a", 0);
 			usb_pid = 0;
 			ret = _usb_update(usb_pid);
+		} else {
+			#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
+			run_command("usb start", 0);
+			ret = run_command("usb storage", 0);
+			if (ret)
+				return ret;
+
+			run_command("setenv devtype usb", 0);
+			run_command("setenv devnum 0", 0);
+			run_command("setenv distro_bootpart", 0);
+			printf("Start udisk downloading...");
+			ret = run_command("load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
+			if (ret != 0) {
+				printf("load from no partition udisk\n");
+				ret = run_command("load ${devtype} ${devnum} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
+			}
+			#else
+			ret = _udisk_update();
+			#endif
 		}
 	} else {
 		printf("Usage:\n%s\n", cmdtp->usage);
