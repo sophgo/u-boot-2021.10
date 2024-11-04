@@ -413,7 +413,7 @@ void sm9v1_board_init(void)
 /*set pinmux by prd*/
 void set_product_pinmux(void)
 {
-	char dtstype[30] = {};
+	char dtstype[DTSNAME_MAX_LEN] = {0};
 	get_dts_type_from_sram(dtstype);
 	if(strstr(dtstype,"sm9v1"))
 	{
