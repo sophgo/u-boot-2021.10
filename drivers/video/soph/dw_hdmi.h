@@ -1334,6 +1334,8 @@ enum {
 
 #define HDMI_VIDEO_DEFAULT_MODE 4
 
+#define HDCP_PRIVATE_KEY_SIZE   280
+
 enum v4l2_ycbcr_encoding {
 	/*
 	 * Mapping of V4L2_YCBCR_ENC_DEFAULT to actual encodings for the
@@ -1516,12 +1518,11 @@ struct dw_hdmi_phy_data {
 			 unsigned long mpixelclock);
 };
 
-// struct hdcp_keys {
-// 	u8 KSV[8];
-// 	u8 devicekey[HDCP_PRIVATE_KEY_SIZE];
-// 	u8 sha1[HDCP_KEY_SHA_SIZE];
-// 	u8 seeds[2];
-// };
+struct hdcp_keys {
+	u8 KSV[8];
+	u8 devicekey[HDCP_PRIVATE_KEY_SIZE];
+	u8 seeds[2];
+};
 
 struct dw_hdmi_i2c {
 	u8			slave_reg;

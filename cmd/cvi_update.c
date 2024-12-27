@@ -381,6 +381,7 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 		} else {
 			#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
 			run_command("usb start", 0);
+
 			ret = run_command("usb storage", 0);
 			if (ret)
 				return ret;
@@ -388,6 +389,16 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			run_command("setenv devtype usb", 0);
 			run_command("setenv devnum 0", 0);
 			run_command("setenv distro_bootpart", 0);
+			ret = run_command
+				("load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /$ota_path/fip.bin",
+				0);
+			if (ret != 0) {
+				run_command("setenv devtype mmc", 0);
+				run_command("setenv devnum 1", 0);
+				run_command("setenv distro_bootpart 1", 0);
+				return ret;
+			}
+
 			printf("Start udisk downloading...");
 			ret = run_command("load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
 			if (ret != 0) {

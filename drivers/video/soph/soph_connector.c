@@ -61,11 +61,10 @@ static int soph_connector_path_init(struct soph_connector *conn,
 	int ret = 0;
 
 	// if (conn->panel)
-	// 	soph_panel_init(conn->panel, conn, state);
+	//	soph_panel_init(conn->panel, conn, state);
 
-	if (conn->bridge){
+	if (conn->bridge)
 		soph_bridge_init(conn->bridge, conn, state);
-	}
 
 	if (conn->funcs->init) {
 		ret = conn->funcs->init(conn, state);
@@ -208,7 +207,7 @@ static int soph_connector_path_pre_enable(struct soph_connector *conn,
 		soph_bridge_pre_enable(conn->bridge);
 
 	// if (conn->panel)
-	// 	soph_panel_prepare(conn->panel);
+	//	soph_panel_prepare(conn->panel);
 
 	return 0;
 }
@@ -237,7 +236,7 @@ static int soph_connector_path_enable(struct soph_connector *conn,
 		soph_bridge_enable(conn->bridge);
 
 	// if (conn->panel)
-	// 	soph_panel_enable(conn->panel);
+	//	soph_panel_enable(conn->panel);
 
 	return 0;
 }
@@ -260,7 +259,7 @@ static int soph_connector_path_disable(struct soph_connector *conn,
 					   struct display_state *state)
 {
 	// if (conn->panel)
-	// 	soph_panel_disable(conn->panel);
+	//	soph_panel_disable(conn->panel);
 
 	if (conn->bridge)
 		soph_bridge_disable(conn->bridge);
@@ -289,7 +288,7 @@ static int soph_connector_path_post_disable(struct soph_connector *conn,
 						struct display_state *state)
 {
 	// if (conn->panel)
-	// 	soph_panel_unprepare(conn->panel);
+	//	soph_panel_unprepare(conn->panel);
 
 	if (conn->bridge)
 		soph_bridge_post_disable(conn->bridge);

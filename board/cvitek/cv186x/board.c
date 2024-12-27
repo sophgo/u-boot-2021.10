@@ -41,6 +41,7 @@
 #define DTSNAME_MAX_LEN 32
 void get_dts_type_from_oem(unsigned char *dtsname);
 void get_dts_type_from_sram(unsigned char *dtsname);
+u64 get_ddr_size_from_sram(void);
 DECLARE_GLOBAL_DATA_PTR;
 #define SD1_SDIO_PAD
 
@@ -255,6 +256,12 @@ void board_show_logo(void)
 	soph_show_logo();
 }
 #endif
+
+void hdcp_load_key(void)
+{
+	/*Load hdmi hdcp key*/
+	run_command("load mmc 0:1 0x102f80000 hdcp_key.bin", 0);
+}
 
 /*sm9v1 pinmux init*/
 void sm9v1_board_init(void)
@@ -518,6 +525,25 @@ void get_dts_type_from_sram(unsigned char *dtsname)
 		memcpy(dtsname, DEFAULT_DTSNAME, sizeof(DEFAULT_DTSNAME));
 }
 
+u64 get_ddr_size_from_sram(void)
+{
+	u64 ddr_size;
+
+	ddr_size = mmio_read_32(DDR_SIZE_OEM_INFO);
+	switch (ddr_size) {
+	case 2:
+	case 4:
+	case 8:
+	case 12:
+	case 16:
+		break;
+
+	default:
+		return PHYS_SDRAM_1_SIZE;
+	}
+	return ddr_size * 1024 * 1024 * 1024;
+}
+
 /*set default console by oem*/
 struct serial_device *default_serial_console(void)
 {
@@ -604,6 +630,7 @@ int board_late_init(void)
 	setup_mac();
 	setup_sophgo_dts();
 	setup_sophgo_console();
+	hdcp_load_key();
 #ifdef CONFIG_VIDEO_SOPH
 	board_show_logo();
 #endif
@@ -614,6 +641,7 @@ int board_late_init(void)
 int board_late_init(void)
 {
 	setup_sophgo_dts();
+	hdcp_load_key();
 #ifdef CONFIG_VIDEO_SOPH
 	board_show_logo();
 #endif
@@ -624,14 +652,15 @@ int board_late_init(void)
 #if defined(__aarch64__)
 int dram_init(void)
 {
-	gd->ram_size = PHYS_SDRAM_1_SIZE;
+	gd->ram_size = get_ddr_size_from_sram();
+	mem_map[1].size = gd->ram_size;
 	return 0;
 }
 
 int dram_init_banksize(void)
 {
 	gd->bd->bi_dram[0].start = PHYS_SDRAM_1;
-	gd->bd->bi_dram[0].size = PHYS_SDRAM_1_SIZE;
+	gd->bd->bi_dram[0].size = get_ddr_size_from_sram();
 
 	return 0;
 }
@@ -720,3 +749,17 @@ void board_save_time_record(uintptr_t saveaddr)
 	mmio_write_16(saveaddr, DIV_ROUND_UP(boot_us, 1000));
 }
 
+#if defined(CONFIG_MULTI_DTB_FIT)
+int board_fit_config_name_match(const char *name)
+{
+	char fit_name[DTSNAME_MAX_LEN] = {0};
+	char dtstype[DTSNAME_MAX_LEN] = {0};
+
+	get_dts_type_from_sram(dtstype);
+	memcpy(fit_name, name + 7, strlen(name) - 7 -2);//only match product name eg:_sm9v1_
+	if (strstr((char *)dtstype, fit_name)) {
+		return 0;
+	}
+	return -1;
+}
+#endif

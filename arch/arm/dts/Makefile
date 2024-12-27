@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0+
-dtb-$(CONFIG_TARGET_CVITEK) += $(CHIP)_$(CVIBOARD).dtb
+dtb-$(CONFIG_TARGET_CVITEK) += $(CHIP)_$(CVIBOARD).dtb \
+	cv186ah_sm9v1_4G.dtb \
+	cv186ah_se9b1_4G.dtb \
+	cv186ah_se9b2_4G.dtb \
+	cv186ah_se9b3_4G.dtb
 
 dtb-$(CONFIG_TARGET_SMARTWEB) += at91sam9260-smartweb.dtb
 dtb-$(CONFIG_TARGET_TAURUS) += at91sam9g20-taurus.dtb

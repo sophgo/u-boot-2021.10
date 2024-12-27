@@ -55,12 +55,6 @@
 #define GICD_BASE			(0x50001000)
 #define GICC_BASE			(0x50002000)
 
-/* RTC SRAM last 256bytes for oem info */
-#define CONSOLE_OEM_INFO   (0x5200000 + 0x7f82) //1byte for console selsect
-#define CONSOLE_USE_UART0  (0x00)
-#define CONSOLE_USE_UART2  (0x02)
-#define DTSTYPE_OEM_INFO   (0x5200000 + 0x7fA0) //32byte for dts type
-
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + (9 << 20))
 
@@ -155,6 +149,10 @@
 
 #define CONFIG_ENV_OVERWRITE
 
+#define CONFIG_MMC_UHS_SUPPORT
+#define CONFIG_MMC_HS200_SUPPORT
+#define CONFIG_MMC_SUPPORTS_TUNING
+
 /* #define CONFIG_USB_DWC2 */
 /* #define CONFIG_USB_DWC2_REG_ADDR	0x04340000 */
 /* Enable below CONFIG for fastboot */
@@ -205,6 +203,8 @@
 		#else
 			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0"
 		#endif /* CONFIG_SKIP_RAMDISK */
+	#elif CONFIG_SD_BOOT
+		#define ROOTARGS "root=" ROOTFS_DEV " rootwait rw"
 	#else
 		#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
 	#endif
@@ -257,6 +257,7 @@
 		"mtdparts=" PARTS "\0" \
 		"mtdids=" MTDIDS_DEFAULT "\0" \
 		"root=" ROOTARGS "\0" \
+		"sddev=1\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
 		"recboot=" RECBOOTCOMMAND "\0" \
 		OTHERBOOTARGS \
@@ -272,6 +273,7 @@
 		"initrd_high=" __stringify(0x104000000) "\0" \
 		"mtdparts=" PARTS "\0" \
 		"mtdids=" MTDIDS_DEFAULT "\0" \
+		"sddev=1\0" \
 		"root=" ROOTARGS "\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
 		OTHERBOOTARGS \
@@ -312,58 +314,70 @@
 	#define SET_BOOTARGS "setenv bootargs ${root} ${mtdparts} " \
 					"console=$consoledev,$baudrate $othbootargs;"
 
-	#define SD_BOOTM_COMMAND \
-				SET_BOOTARGS \
-				"echo Boot from SD with ramboot.itb;" \
-				"mmc dev 1 && fatload mmc 1 ${uImage_addr} ramboot.itb; " \
-				"if test $? -eq 0; then " \
-				UBOOT_VBOOT_BOOTM_COMMAND \
-				"fi;"
+	#define SD_BOOTM_COMMAND                                                       \
+		SET_BOOTARGS                                                           \
+		"echo Boot from SD dev ${sddev} ...;"                                  \
+		"mmc dev ${sddev} && fatload mmc ${sddev} ${uImage_addr} boot.itb;"    \
+		"if test $? -eq 0; then " UBOOT_DTS_TYPE_BOOTM_COMMAND "; fi;"
 
-	#define CONFIG_RAMBOOTCOMMAND \
-				SET_BOOTARGS \
-				"echo Boot from ramboot.itb;" \
-				UBOOT_VBOOT_BOOTM_COMMAND
+	/*#define SD_BOOTM_COMMAND \ */
+	/*				SET_BOOTARGS \ */
+	/*				"echo Boot from SD with ramboot.itb;" \ */
+	/*				"mmc dev 1 && fatload mmc 1 ${uImage_addr} ramboot.itb; " \ */
+	/*				"if test $? -eq 0; then " \ */
+	/*				UBOOT_VBOOT_BOOTM_COMMAND \ */
+	/*				"fi;" */
+
+	#define CONFIG_RAMBOOTCOMMAND                                                  \
+		SET_BOOTARGS                                                           \
+		"echo Boot from ramboot.itb;" UBOOT_VBOOT_BOOTM_COMMAND
 
 	#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
-		#define RECBOOTCOMMAND "setenv bootargs console=${consoledev},${baudrate} ${othbootargs}; " \
-		"load mmc 0:2 ${uImage_addr} recovery.itb;" \
-		"bootm ${uImage_addr}#config-" FDT_NO ";"
+		#define RECBOOTCOMMAND                                                         \
+			"setenv bootargs console=${consoledev},${baudrate} ${othbootargs}; "   \
+			"load mmc 0:2 ${uImage_addr} recovery.itb;"                            \
+			"bootm ${uImage_addr}#config-" FDT_NO ";"
 
-		#define CONFIG_BOOTCOMMAND "cvi_update || load mmc 0:1 ${scriptaddr} boot.scr.emmc; source ${scriptaddr}"
+		#if defined(CONFIG_SD_BOOT)
+			#define CONFIG_BOOTCOMMAND                                                     \
+				"run sdboot"
+		#else
+			#define CONFIG_BOOTCOMMAND                                                     \
+				"cvi_update || load mmc 0:1 ${scriptaddr} boot.scr.emmc; source ${scriptaddr}"
+		#endif
 	#else
-		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
+		#define CONFIG_BOOTCOMMAND                                                     \
+			SHOWLOGOCMD                                                            \
+				"cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
 	#endif
 
 	#if defined(CONFIG_NAND_SUPPORT)
-	/* For spi nand boot, need to reset DMA and its setting before exiting uboot */
-	/* 0x4330058 : DMA reset */
-	/* 0x3000154 : restore DMA remap to 0 */
-		#define CONFIG_NANDBOOTCOMMAND \
-				SET_BOOTARGS \
-				"nand read ${uImage_addr} BOOT;" \
-				UBOOT_DTS_TYPE_BOOTM_COMMAND
+		/* For spi nand boot, need to reset DMA and its setting before exiting uboot */
+		/* 0x4330058 : DMA reset */
+		/* 0x3000154 : restore DMA remap to 0 */
+		#define CONFIG_NANDBOOTCOMMAND                                                 \
+			SET_BOOTARGS                                                           \
+			"nand read ${uImage_addr} BOOT;" UBOOT_DTS_TYPE_BOOTM_COMMAND
 	#elif defined(CONFIG_SPI_FLASH)
-		#define CONFIG_NORBOOTCOMMAND \
-				SET_BOOTARGS \
-				"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
-				UBOOT_DTS_TYPE_BOOTM_COMMAND
+		#define CONFIG_NORBOOTCOMMAND                                                  \
+			SET_BOOTARGS                                                           \
+			"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+			UBOOT_DTS_TYPE_BOOTM_COMMAND
 	#elif defined(CONFIG_EMMC_SUPPORT)
-		#define CONFIG_EMMCBOOTCOMMAND \
-				SET_BOOTARGS \
-				"mmc dev 0 ;"		\
-				"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;"		\
-				UBOOT_DTS_TYPE_BOOTM_COMMAND
+		#define CONFIG_EMMCBOOTCOMMAND                                                 \
+			SET_BOOTARGS                                                           \
+			"mmc dev 0 ;"                                                          \
+			"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;" UBOOT_DTS_TYPE_BOOTM_COMMAND
 
-		#define CONFIG_RAMBOOTICOMMAND \
-				"setenv bootargs console=$consoledev,$baudrate $othbootargs; " \
-				"mmc dev 1;fatload mmc 1 0x104000000 Image;" \
-				"fatload mmc 1 0x105000000 boot.cpio.gz.img;" \
-				"fatload mmc 1 0x106000000 " FDT_NO".dtb;"\
-				"echo run Rambooti...;" \
-				"if test $? -eq 0; then " \
-				"booti 0x104000000 0x105000000 0x106000000;"\
-				"fi;"
+		#define CONFIG_RAMBOOTICOMMAND                                                 \
+			"setenv bootargs console=$consoledev,$baudrate $othbootargs; "         \
+			"mmc dev 1;fatload mmc 1 0x104000000 Image;"                           \
+			"fatload mmc 1 0x105000000 boot.cpio.gz.img;"                          \
+			"fatload mmc 1 0x106000000 " FDT_NO ".dtb;"                            \
+			"echo run Rambooti...;"                                                \
+			"if test $? -eq 0; then "                                              \
+			"booti 0x104000000 0x105000000 0x106000000;"                           \
+			"fi;"
 	#endif
 
 #else

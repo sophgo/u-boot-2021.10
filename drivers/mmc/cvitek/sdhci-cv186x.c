@@ -38,6 +38,7 @@ struct cvi_sdhci_host {
 	int reset_tx_rx_phy;
 	u32 mmc_fmax_freq;
 	u32 mmc_fmin_freq;
+	u8 final_tap;
 	struct reset_ctl reset_ctl;
 };
 
@@ -157,6 +158,21 @@ static void reset_after_tuning_pass(struct sdhci_host *host)
 
 	while (sdhci_readb(host, SDHCI_SOFTWARE_RESET) & 0x3)
 		;
+}
+
+static int sdhci_cvi_set_ios_post(struct sdhci_host *host)
+{
+	struct mmc *mmc = (struct mmc *)host->mmc;
+	u32 ctrl;
+
+	if (mmc->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		ctrl |= SDHCI_CTRL_VDD_180;
+		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+	}
+
+	sdhci_set_uhs_timing(host);
+	return 0;
 }
 
 int cvi_general_execute_tuning(struct mmc *mmc, u8 opcode)
@@ -310,7 +326,7 @@ retry_tuning:
 	pr_debug("mmc%d : rate = %d\n", host->index, rate);
 
 	cvi_mmc_set_tap(host, final_tap);
-	//cvi_host->final_tap = final_tap;
+	cvi_host->final_tap = final_tap;
 	ret = mmc_send_tuning(host->mmc, opcode, NULL);
 	printf("mmc%d : finished tuning, code:%d\n", host->index, final_tap);
 
@@ -329,6 +345,7 @@ retry_tuning:
 static void cvi_general_reset(struct sdhci_host *host, u8 mask)
 {
 	u16 ctrl_2;
+	struct cvi_sdhci_host *cvi_host = container_of(host, struct cvi_sdhci_host, host);
 
 	if (host->index == MMC_TYPE_MMC) {
 		//reg_0x200[0] = 1 for mmc
@@ -357,7 +374,7 @@ static void cvi_general_reset(struct sdhci_host *host, u8 mask)
 			     sdhci_readl(host, CVI_SDHCI_PHY_CONFIG) & ~(BIT(0)),
 			     CVI_SDHCI_PHY_CONFIG);
 		//reg_0x240[22:16] = tap reg_0x240[9:8] = 1 reg_0x240[6:0] = 0
-		sdhci_writel(host, (BIT(8) | ((0 & 0x7F) << 16)), CVI_SDHCI_PHY_TX_RX_DLY);
+		sdhci_writel(host, (BIT(8) | ((cvi_host->final_tap & 0x7F) << 16)), CVI_SDHCI_PHY_TX_RX_DLY);
 	} else {
 		//Reset as DS/HS setting.
 		//reg_0x200[1] = 1
@@ -542,6 +559,7 @@ const struct sdhci_ops cvi_sdhci_emmc_ops = {
 	.platform_execute_tuning = cvi_general_execute_tuning,
 #endif
 	.reset = cvi_general_reset,
+	.set_ios_post = sdhci_cvi_set_ios_post,
 };
 
 const struct sdhci_ops cvi_sdhci_sd_ops = {
@@ -553,6 +571,7 @@ const struct sdhci_ops cvi_sdhci_sd_ops = {
 	.voltage_switch = cvi_sd_voltage_switch,
 #endif
 	.reset = cvi_general_reset,
+	.set_ios_post = sdhci_cvi_set_ios_post,
 };
 
 static const struct cvi_sdhci_driver_data sdhci_cvi_emmc_drvdata = {

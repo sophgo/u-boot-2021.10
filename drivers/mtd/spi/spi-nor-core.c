@@ -2760,7 +2760,10 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		case SNOR_MFR_BOYA:
 		case SNOR_MFR_PY:
 		case SNOR_MFR_FUDAN:
-			params->quad_enable = quad_enable_SR2_bit1;
+			if (!(info->flags & SPI_NOR_WRSR_2B))
+				params->quad_enable = quad_enable_SR2_bit1;
+			else
+				params->quad_enable = spansion_read_cr_quad_enable;
 			break;
 
 		case SNOR_MFR_MICRON:

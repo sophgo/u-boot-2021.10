@@ -10,13 +10,13 @@ extern u32  vo_sys_f_base;
 extern u32  vo_sys_b_base;
 extern u32  top_pll_base;
 
-#define REG_VO_MAC_BASE(x) (vo_sys_f_base + 0x1000 + 0x2000*(x))
+#define REG_VO_MAC_BASE(x) (vo_sys_f_base + 0x1000 + 0x2000 * (x))
 #define REG_DISP_DSI_BASE(x) (((x == 0) ? vo_sys_f_base : vo_sys_b_base) + 0x2000)
-#define REG_DISP_BASE(x) (vo_sys_f_base + 0x4000 + 0x1000*(x))
+#define REG_DISP_BASE(x) (vo_sys_f_base + 0x4000 + 0x1000 * (x))
 #define REG_DSI_WRAP_BASE(x) (vo_sys_b_base + 0x1000*(x))
 //GOP
 #define REG_DISP_GOP_BASE(x) (REG_DISP_BASE(x))
-#define REG_GOP_OFFSET(x) (0x800 + 0x200*(x))
+#define REG_GOP_OFFSET(x) (0x800 + 0x200 * (x))
 //OSD
 #define REG_VO_SYS_OENC_BASE(x) (vo_sys_f_base + 0x6000 + 0x1000*(x))
 
@@ -222,9 +222,9 @@ extern u32  top_pll_base;
 #define REG_DISP_GAMMA_RD_LUT(x) (REG_DISP_BASE(x) + 0x188)
 
 // COVER
-#define REG_DISP_COVER_CFG(x, y) (REG_DISP_GOP_BASE(x) + 0x0C*y + 0x280)
-#define REG_DISP_COVER_SIZE(x, y) (REG_DISP_GOP_BASE(x) + 0x0C*y + 0x284)
-#define REG_DISP_COVER_COLOR(x, y) (REG_DISP_GOP_BASE(x) + 0x0C*y + 0x288)
+#define REG_DISP_COVER_CFG(x, y) (REG_DISP_GOP_BASE(x) + 0x0C * y + 0x280)
+#define REG_DISP_COVER_SIZE(x, y) (REG_DISP_GOP_BASE(x) + 0x0C * y + 0x284)
+#define REG_DISP_COVER_COLOR(x, y) (REG_DISP_GOP_BASE(x) + 0x0C * y + 0x288)
 
 // ODMA
 #define REG_DISP_ODMA_CFG(x) (REG_DISP_BASE(x) + 0x318)
@@ -368,13 +368,13 @@ extern u32  top_pll_base;
 
 // DISP GOP
 //The z below represents different ow
-#define REG_DISP_GOP_FMT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x00)
-#define REG_DISP_GOP_H_RANGE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x04)
-#define REG_DISP_GOP_V_RANGE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x08)
-#define REG_DISP_GOP_ADDR_L(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x0c)
-#define REG_DISP_GOP_ADDR_H(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x10)
-#define REG_DISP_GOP_CROP_PITCH(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x14)
-#define REG_DISP_GOP_SIZE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20*z + 0x18)
+#define REG_DISP_GOP_FMT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x00)
+#define REG_DISP_GOP_H_RANGE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x04)
+#define REG_DISP_GOP_V_RANGE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x08)
+#define REG_DISP_GOP_ADDR_L(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x0c)
+#define REG_DISP_GOP_ADDR_H(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x10)
+#define REG_DISP_GOP_CROP_PITCH(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x14)
+#define REG_DISP_GOP_SIZE(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x20 * z + 0x18)
 #define REG_DISP_GOP_CFG(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x100)
 #define REG_DISP_GOP_256LUT0(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x104)
 #define REG_DISP_GOP_256LUT1(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x108)
@@ -382,20 +382,20 @@ extern u32  top_pll_base;
 #define REG_DISP_GOP_FONTCOLOR(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x110)
 #define REG_DISP_GOP_FONTBOX_CTRL(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x120)
 //The z below represents different fontbox instance
-#define REG_DISP_GOP_FONTBOX_CFG(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10*z + 0x124)
-#define REG_DISP_GOP_FONTBOX_INIT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10*z + 0x128)
-#define REG_DISP_GOP_FONTBOX_REC(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10*z + 0x12c)
+#define REG_DISP_GOP_FONTBOX_CFG(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10 * z + 0x124)
+#define REG_DISP_GOP_FONTBOX_INIT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10 * z + 0x128)
+#define REG_DISP_GOP_FONTBOX_REC(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x10 * z + 0x12c)
 #define REG_DISP_GOP_BW_LIMIT(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x140)
 #define REG_DISP_GOP_DEC_CTRL(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x150)
 #define REG_DISP_GOP_DEC_DEBUG(x, y) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x154)
 //The z below represents length
-#define REG_DISP_GOP_16LUT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x4*z + 0x160)
+#define REG_DISP_GOP_16LUT(x, y, z) (REG_DISP_GOP_BASE(x) + REG_GOP_OFFSET(y) + 0x4 * z + 0x160)
 
 enum drm_intf {
-    DRM_INTF_DISP0,
-    DRM_INTF_DISP1,
-    DRM_INTF_HDMI,
-    DRM_INTF_BUTT,
+	DRM_INTF_DISP0,
+	DRM_INTF_DISP1,
+	DRM_INTF_HDMI,
+	DRM_INTF_BUTT,
 };
 
 u32 _reg_read(uintptr_t addr);
