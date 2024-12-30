@@ -35,7 +35,7 @@
 
 uint32_t update_magic;
 enum chunk_type_e { dont_care = 0, check_crc };
-enum storage_type_e { sd_dl = 0, usb_dl };
+enum storage_type_e { sd_dl = 0, usb_dl, ota_dl };
 
 #if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
 static int _storage_update(enum storage_type_e type);
@@ -98,7 +98,7 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	return size;
 }
 #if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
-static int _checkHeader(char *file, char strStorage[10])
+static int _checkHeader(char *file, char fs_type_Storage[10], char strStorage[10])
 {
 	char *magic = (void *)HEADER_ADDR;
 	uint32_t version = *(uint32_t *)((uintptr_t)HEADER_ADDR + 4);
@@ -131,7 +131,7 @@ static int _checkHeader(char *file, char strStorage[10])
 		uint32_t load_size = file_sz > (MAX_LOADSIZE + chunk_sz) ?
 				     MAX_LOADSIZE + chunk_sz :
 				     file_sz;
-		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0x%x;", strStorage,
+		snprintf(cmd, 255, "%sload %s %p %s 0x%x 0x%x;", fs_type_Storage, strStorage,
 			 (void *)UPDATE_ADDR, file, load_size, pos);
 		pr_debug("%s\n", cmd);
 		ret = run_command(cmd, 0);
@@ -154,6 +154,7 @@ static int _storage_update(enum storage_type_e type)
 	int ret = 0;
 	char cmd[255] = { '\0' };
 	char strStorage[10] = { '\0' };
+	char fs_type_Storage[10] = { '\0' };
 	uint8_t sd_index = 0;
 
 	if (type == sd_dl) {
@@ -189,6 +190,21 @@ static int _storage_update(enum storage_type_e type)
 			if (ret)
 				return ret;
 		}
+		strlcpy(fs_type_Storage, "fat", strlen("fat") + 1);
+	} else if (type == ota_dl) {
+#if defined(CONFIG_EMMC_SUPPORT)
+		strlcpy(fs_type_Storage, "ext4", strlen("ext4") + 1);
+		u8 ota_part = env_get_ulong("ota_part", 10, 7);
+		snprintf(cmd, 255, "mmc 0:%u", ota_part);
+		strlcpy(strStorage, cmd, 9);
+		snprintf(cmd, 255, "%sload %s %p fip.bin;", fs_type_Storage, strStorage, (void *)HEADER_ADDR);
+		ret = run_command(cmd, 0);
+		if (ret)
+			return ret;
+#endif
+	}
+
+		/* wtite fip start */
 #if defined(CONFIG_NAND_SUPPORT)
 		snprintf(cmd, 255, "cvi_sd_update %p spinand fip",
 			 (void *)HEADER_ADDR);
@@ -216,11 +232,12 @@ static int _storage_update(enum storage_type_e type)
 			SET_DL_COMPLETE();
 		else
 			return ret;
-	}
+		/* wtite fip done */
+
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		WATCHDOG_RESET();
-		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
-			 (void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
+		snprintf(cmd, 255, "%sload %s %p %s 0x%x 0;", fs_type_Storage, strStorage,
+				(void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
 		pr_debug("%s\n", cmd);
 		ret = run_command(cmd, 0);
 		if (ret) {
@@ -228,7 +245,7 @@ static int _storage_update(enum storage_type_e type)
 			continue;
 		}
 #if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
-		if (_checkHeader(imgs[i], strStorage))
+		if (_checkHeader(imgs[i], fs_type_Storage, strStorage))
 			continue;
 #endif
 	}
@@ -240,6 +257,7 @@ static int _udisk_update(void)
 	int ret = 0;
 	char cmd[255] = { '\0' };
 	char strStorage[10] = { '\0' };
+	char fs_type_Storage[10] = { '\0' };
 
 	run_command("usb start", 0);
 
@@ -282,9 +300,10 @@ static int _udisk_update(void)
 	else
 		return ret;
 
+	strlcpy(fs_type_Storage, "fat", strlen("fat") + 1);
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		WATCHDOG_RESET();
-		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
+		snprintf(cmd, 255, "%sload %s %p %s 0x%x 0;", fs_type_Storage, strStorage,
 			 (void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
 		pr_debug("%s\n", cmd);
 		ret = run_command(cmd, 0);
@@ -293,7 +312,7 @@ static int _udisk_update(void)
 			continue;
 		}
 #if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
-		if (_checkHeader(imgs[i], strStorage))
+		if (_checkHeader(imgs[i], fs_type_Storage, strStorage))
 			continue;
 #endif
 	}
@@ -374,11 +393,21 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			#else
 			ret = _storage_update(sd_dl);
 			#endif
-		} else if (update_magic == USB_UPDATE_MAGIC) {
-			run_command("env default -a", 0);
-			usb_pid = 0;
-			ret = _usb_update(usb_pid);
-		} else {
+			} else if (update_magic == USB_UPDATE_MAGIC) {
+				run_command("env default -a", 0);
+				usb_pid = 0;
+				ret = _usb_update(usb_pid);
+			} else if (env_get_ulong("ota_enable", 10, 0) != 0) {
+#if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
+				ret = _storage_update(ota_dl);
+				if (!ret) {
+					run_command("setenv ota_enable 0;saveenv", 0);
+					run_command("reset", 0);
+				} else {
+					printf("ota update fail\n");
+				}
+#endif
+			} else {
 			#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
 			run_command("usb start", 0);
 

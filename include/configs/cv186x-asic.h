@@ -274,6 +274,8 @@
 		"mtdparts=" PARTS "\0" \
 		"mtdids=" MTDIDS_DEFAULT "\0" \
 		"sddev=1\0" \
+		"ota_part=7\0" \
+		"ota_enable=0\0" \
 		"root=" ROOTARGS "\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
 		OTHERBOOTARGS \
