@@ -260,6 +260,7 @@
 		"sddev=1\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
 		"recboot=" RECBOOTCOMMAND "\0" \
+		"UBOOT_ENV_SUPPORT_OTA_ENABLE=1\0" \
 		OTHERBOOTARGS \
 		PARTS_OFFSET
 	#else
