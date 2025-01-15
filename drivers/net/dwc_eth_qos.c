@@ -143,7 +143,7 @@ static int eqos_mdio_wait_idle(struct eqos_priv *eqos)
 {
 	return wait_for_bit_le32(&eqos->mac_regs->mdio_address,
 				 EQOS_MAC_MDIO_ADDRESS_GB, false,
-				 1000000, true);
+				 1000000, false);
 }
 
 #if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
