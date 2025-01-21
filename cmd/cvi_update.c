@@ -265,6 +265,10 @@ static int _udisk_update(void)
 	if (ret)
 		return ret;
 
+	ret = run_command("test -e usb 0 /$ota_path/fip.bin", 0);
+	if (ret)
+		return ret;
+
 	strlcpy(strStorage, "usb 0", strlen("usb 0") + 1);
 	snprintf(cmd, 255, "fatload %s %p fip.bin;", strStorage, (void *)HEADER_ADDR);
 	ret = run_command(cmd, 0);
@@ -418,6 +422,10 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			run_command("setenv devtype usb", 0);
 			run_command("setenv devnum 0", 0);
 			run_command("setenv distro_bootpart", 0);
+			ret = run_command("test -e ${devtype} ${devnum}:${distro_bootpart} /$ota_path/fip.bin", 0);
+			if (ret)
+				return ret;
+
 			ret = run_command
 				("load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /$ota_path/fip.bin",
 				0);
