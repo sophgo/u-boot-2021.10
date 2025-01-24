@@ -574,7 +574,10 @@ int spl_init(void)
 __weak void board_boot_order(u32 *spl_boot_list)
 {
 	// spl_boot_list[0] = spl_boot_device();
-	 spl_boot_list[0] = BOOT_DEVICE_NOR;
+	spl_boot_list[0] = BOOT_DEVICE_NOR;
+	spl_boot_list[1] = BOOT_DEVICE_NAND;
+	spl_boot_list[2] = BOOT_DEVICE_MMC1;
+	spl_boot_list[3] = BOOT_DEVICE_MMC2;
 }
 
 static struct spl_image_loader *spl_ll_find_loader(uint boot_device)
@@ -651,7 +654,7 @@ static int boot_from_devices(struct spl_image_info *spl_image,
 				printf(SPL_TPL_PROMPT
 				       "Unsupported Boot Device %d\n", bootdev);
 			else
-				puts(SPL_TPL_PROMPT "Unsupported Boot Device!\n");
+				debug(SPL_TPL_PROMPT "Unsupported Boot Device!\n");
 		}
 		if (loader && !spl_load_image(spl_image, loader)) {
 			spl_image->boot_device = bootdev;
@@ -666,6 +669,7 @@ static int boot_from_devices(struct spl_image_info *spl_image,
 void board_init_f(ulong dummy)
 {
 	board_save_time_record(TIME_RECORDS_FIELD_UBOOT_START);
+	preloader_console_init();
 #ifdef CONFIG_ARM64
 	extern ulong __image_copy_start;
 	gd->relocaddr = (ulong)&__image_copy_start;
@@ -704,6 +708,10 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 
 	spl_set_bd();
 	board_init();
+#ifdef CONFIG_ARCH_EARLY_INIT_R
+	arch_early_init_r();
+#endif
+
 
 #if defined(CONFIG_SYS_SPL_MALLOC_START)
 	mem_malloc_init(CONFIG_SYS_SPL_MALLOC_START,

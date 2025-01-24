@@ -372,3 +372,8 @@ void board_save_time_record(uintptr_t saveaddr)
 
 	mmio_write_16(saveaddr, DIV_ROUND_UP(boot_us, 1000));
 }
+
+struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
+{
+	return (struct image_header *)CVIMMAP_UIMAG_ADDR;
+}
