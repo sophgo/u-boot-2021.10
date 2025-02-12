@@ -36,8 +36,8 @@ struct cvi_sdhci_host {
 	int no_1_8_v;
 	int is_64_addressing;
 	int reset_tx_rx_phy;
-	uint32_t mmc_fmax_freq;
-	uint32_t mmc_fmin_freq;
+	u32 mmc_fmax_freq;
+	u32 mmc_fmin_freq;
 	struct reset_ctl reset_ctl;
 };
 
@@ -226,18 +226,18 @@ static void cvi_mmc_set_tap(struct sdhci_host *host, u16 tap)
 	mdelay(1);
 }
 
-static inline uint32_t CHECK_MASK_BIT(void *_mask, uint32_t bit)
+static inline u32 CHECK_MASK_BIT(void *_mask, u32 bit)
 {
-	uint32_t w = bit / 8;
-	uint32_t off = bit % 8;
+	u32 w = bit / 8;
+	u32 off = bit % 8;
 
 	return ((uint8_t *)_mask)[w] & (1 << off);
 }
 
-static inline void SET_MASK_BIT(void *_mask, uint32_t bit)
+static inline void SET_MASK_BIT(void *_mask, u32 bit)
 {
-	uint32_t byte = bit / 8;
-	uint32_t offset = bit % 8;
+	u32 byte = bit / 8;
+	u32 offset = bit % 8;
 	((uint8_t *)_mask)[byte] |= (1 << offset);
 }
 
@@ -508,6 +508,67 @@ int cvi_get_cd(struct sdhci_host *host)
 	}
 }
 
+#ifdef CONFIG_ENABLE_EMMC_HW_RESET_QFN
+
+#define GPIO_NUM 19
+#define GPIO_SW_DDR 0x004
+#define GPIO_SW_DR 0x000
+#define GPIO0_BASE 0x03020000
+
+static void cvi_emmc_hw_reset(struct sdhci_host *host)
+{
+	mmio_write_8(PINMUX_BASE + 0x64, 0x3);//0x03001064
+	pr_debug("qfn reset: pinmux:%x\n", mmio_read_8(PINMUX_BASE + 0x64));
+
+	u32 base = GPIO0_BASE;
+	u32 dir_reg_base = base + GPIO_SW_DDR;
+	u32 val_reg_base = base + GPIO_SW_DR;
+
+	u32 dir_reg = mmio_read_32(dir_reg_base);
+	u32 val_reg = mmio_read_32(val_reg_base);
+
+	/* Set direction to output */
+	dir_reg &=  ~BIT(GPIO_NUM);
+	dir_reg |= BIT(GPIO_NUM);
+	mmio_write_32(dir_reg_base, dir_reg);
+	udelay(100);
+	pr_debug("qfn reset 0: dir:%x, val:%x\n", mmio_read_32(dir_reg_base), mmio_read_32(val_reg_base));
+
+	/* Set Value to 0, reset */
+	val_reg	&=  ~BIT(GPIO_NUM);
+	mmio_write_32(val_reg_base, val_reg);
+	udelay(500);
+	pr_debug("qfn reset 1: dir:%x, val:%x\n", mmio_read_32(dir_reg_base), mmio_read_32(val_reg_base));
+
+	/* Set value to 1 */
+	val_reg	&=  ~BIT(GPIO_NUM);
+	val_reg |= BIT(GPIO_NUM);
+	mmio_write_32(val_reg_base, val_reg);
+	udelay(500);
+	pr_debug("qfn reset 2: dir:%x, val:%x\n", mmio_read_32(dir_reg_base), mmio_read_32(val_reg_base));
+
+}
+#else
+static void cvi_emmc_hw_reset(struct sdhci_host *host)
+{
+	pr_debug("%s bga\n", __func__);
+
+	if (host->index != MMC_TYPE_MMC)
+		return;
+	pr_debug("eMMC RST_n0: 0x%x\n", sdhci_readl(host, CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R));
+	sdhci_writel(host,
+		sdhci_readl(host, CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R) & (~(BIT(8))),
+		CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R);
+	pr_debug("eMMC RST_n1: 0x%x\n", sdhci_readl(host, CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R));
+	mdelay(1);
+	/*set bit 8; pull pu hw reset pin*/
+	sdhci_writel(host,
+		sdhci_readl(host, CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R) | (BIT(8)),
+		CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R);
+	pr_debug("eMMC RST_n2: 0x%x\n", sdhci_readl(host, CVI_CV181X_SDHCI_VENDOR_MSHC_CTRL_R));
+	mdelay(1);
+}
+#endif
 static int cvi_sdhci_probe(struct udevice *dev)
 {
 	struct cvi_sdhci_driver_data *drv_data =
@@ -607,6 +668,9 @@ static int cvi_sdhci_probe(struct udevice *dev)
 		sdhci_writel(host, 0x01000100, CVI_SDHCI_PHY_TX_RX_DLY);
 		sdhci_writel(host, 00000001, SDHCI_PHY_CONFIG);
 	}
+
+	/*Do a hardware reset brfore init emmc card*/
+	cvi_emmc_hw_reset(host);
 
 	return ret;
 }
