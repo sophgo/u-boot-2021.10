@@ -5,5 +5,6 @@
 
 obj-$(CONFIG_EXYNOS_ACE_SHA)	+= ace_sha.o
 obj-$(CONFIG_SOPHON_SPACC_SHA)  += sophon_sha.o
+obj-$(CONFIG_SOPHON_SPACC_AES)  += sophon_aes.o 
 obj-y += rsa_mod_exp/
 obj-y += fsl/
