@@ -3778,7 +3778,7 @@ struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	int ret;
 	int maf_idx;
 	u8 id_data[8];
-	struct nand_flash_dev_ex flash_dev_ex;
+	static struct nand_flash_dev_ex flash_dev_ex;
 
 #if CONFIG_IS_ENABLED(RISCV)
 	if (!type)

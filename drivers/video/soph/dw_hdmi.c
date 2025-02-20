@@ -1,9 +1,3 @@
-/*
- * (C) Copyright 2008-2017 Fuzhou Rockchip Electronics Co., Ltd
- *
- * SPDX-License-Identifier:	GPL-2.0+
- */
-
 #include <common.h>
 #include <malloc.h>
 #include <syscon.h>
@@ -26,8 +20,10 @@
 #include "soph_dw_hdmi.h"
 
 #define HDCP_PRIVATE_KEY_SIZE   280
-#define HDCP_KEY_SHA_SIZE       20
-#define HDMI_HDCP1X_ID		5
+#define HDCP_KEY_SIZE		290
+#define HDCP_KEY_SEED_SIZE	2
+#define HDMI_HDCP_KEY_ADDR	0x102f80000
+
 /*
  * Unless otherwise noted, entries in this table are 100% optimization.
  * Values can be obtained from hdmi_compute_n() but that function is
@@ -149,58 +145,57 @@ static struct phy_config phy316_se9[] = {
 	{0, 8, HDMI_20, 0x0640, 0x3080, 0x0005, SE9_GT_3_40GBPS},
 };
 
-struct phy_config * phy316_get_configs(struct dw_hdmi *hdmi, unsigned long mpixelclock, u16 width, u16 height,
-					color_depth_t color, pixel_repetition_t pixel)
+struct phy_config *phy316_get_configs(struct dw_hdmi *hdmi, unsigned long mpixelclock, u16 width, u16 height,
+					enum color_depth_t color, enum pixel_repetition_t pixel)
 {
-
 	debug("mpixelclock:%lu, width:%d, height:%d, color:%d, pixel:%d\n", mpixelclock, width, height, color, pixel);
 
-	if(hdmi->is_se9) {
-		if(mpixelclock >= 25175 && mpixelclock < 36000)
-			return &(phy316_se9[0]);
-		else if(mpixelclock >= 36000 && mpixelclock < 49500)
-			return &(phy316_se9[1]);
-		else if(mpixelclock >= 49500 && mpixelclock < 72000)
-			return &(phy316_se9[2]);
-		else if(mpixelclock >= 72000 && mpixelclock < 94500)
-			return &(phy316_se9[3]);
-		else if(mpixelclock >= 94500 && mpixelclock < 144000)
-			return &(phy316_se9[4]);
-		else if(mpixelclock >= 144000 && mpixelclock < 175500)
-			return &(phy316_se9[5]);
-		else if(mpixelclock >= 175500 && mpixelclock < 185625)
+	if (hdmi->is_se9) {
+		if (mpixelclock >= 25175 && mpixelclock < 36000)
+			return &phy316_se9[0];
+		else if (mpixelclock >= 36000 && mpixelclock < 49500)
+			return &phy316_se9[1];
+		else if (mpixelclock >= 49500 && mpixelclock < 72000)
+			return &phy316_se9[2];
+		else if (mpixelclock >= 72000 && mpixelclock < 94500)
+			return &phy316_se9[3];
+		else if (mpixelclock >= 94500 && mpixelclock < 144000)
+			return &phy316_se9[4];
+		else if (mpixelclock >= 144000 && mpixelclock < 175500)
+			return &phy316_se9[5];
+		else if (mpixelclock >= 175500 && mpixelclock < 185625)
 			return &(phy316_se9[6]);
-		else if(mpixelclock >= 185625 && mpixelclock < 288000)
-			return &(phy316_se9[7]);
-		else if(mpixelclock >= 288000 && mpixelclock < 348500)
-			return &(phy316_se9[8]);
-		else if(mpixelclock >= 348500 && mpixelclock < 475200)
-			return &(phy316_se9[9]);
-		else if(mpixelclock >= 475200 && mpixelclock <= 594000)
-			return &(phy316_se9[10]);
+		else if (mpixelclock >= 185625 && mpixelclock < 288000)
+			return &phy316_se9[7];
+		else if (mpixelclock >= 288000 && mpixelclock < 348500)
+			return &phy316_se9[8];
+		else if (mpixelclock >= 348500 && mpixelclock < 475200)
+			return &phy316_se9[9];
+		else if (mpixelclock >= 475200 && mpixelclock <= 594000)
+			return &phy316_se9[10];
 	} else {
-		if(mpixelclock >= 25175 && mpixelclock < 36000)
-			return &(phy316[0]);
-		else if(mpixelclock >= 36000 && mpixelclock < 49500)
-			return &(phy316[1]);
-		else if(mpixelclock >= 49500 && mpixelclock < 72000)
-			return &(phy316[2]);
-		else if(mpixelclock >= 72000 && mpixelclock < 94500)
-			return &(phy316[3]);
-		else if(mpixelclock >= 94500 && mpixelclock < 144000)
-			return &(phy316[4]);
-		else if(mpixelclock >= 144000 && mpixelclock < 175500)
-			return &(phy316[5]);
-		else if(mpixelclock >= 175500 && mpixelclock < 185625)
-			return &(phy316[6]);
-		else if(mpixelclock >= 185625 && mpixelclock < 288000)
-			return &(phy316[7]);
-		else if(mpixelclock >= 288000 && mpixelclock < 348500)
-			return &(phy316[8]);
-		else if(mpixelclock >= 348500 && mpixelclock < 475200)
-			return &(phy316[9]);
-		else if(mpixelclock >= 475200 && mpixelclock <= 594000)
-			return &(phy316[10]);
+		if (mpixelclock >= 25175 && mpixelclock < 36000)
+			return &phy316[0];
+		else if (mpixelclock >= 36000 && mpixelclock < 49500)
+			return &phy316[1];
+		else if (mpixelclock >= 49500 && mpixelclock < 72000)
+			return &phy316[2];
+		else if (mpixelclock >= 72000 && mpixelclock < 94500)
+			return &phy316[3];
+		else if (mpixelclock >= 94500 && mpixelclock < 144000)
+			return &phy316[4];
+		else if (mpixelclock >= 144000 && mpixelclock < 175500)
+			return &phy316[5];
+		else if (mpixelclock >= 175500 && mpixelclock < 185625)
+			return &phy316[6];
+		else if (mpixelclock >= 185625 && mpixelclock < 288000)
+			return &phy316[7];
+		else if (mpixelclock >= 288000 && mpixelclock < 348500)
+			return &phy316[8];
+		else if (mpixelclock >= 348500 && mpixelclock < 475200)
+			return &phy316[9];
+		else if (mpixelclock >= 475200 && mpixelclock <= 594000)
+			return &phy316[10];
 	}
 
 	return NULL;
@@ -216,7 +211,7 @@ static u8 hdmi_readb(struct dw_hdmi *hdmi, int offset)
 	return _reg_read((uintptr_t)(hdmi->regs + (offset << 2)));
 }
 
-static void hdmi_modb(struct dw_hdmi *hdmi, u8 data, u8 mask, unsigned reg)
+static void hdmi_modb(struct dw_hdmi *hdmi, u8 data, u8 mask, unsigned int reg)
 {
 	_reg_write_mask((uintptr_t)(hdmi->regs + (reg << 2)), mask, data);
 }
@@ -402,7 +397,6 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 		else
 			hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
 				    HDMI_I2CM_OPERATION);
-
 
 		while (i--) {
 			udelay(1000);
@@ -698,10 +692,11 @@ int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 				      const struct dw_hdmi_plat_data *pdata,
 				      unsigned long mpixelclock)
 {
-	struct phy_config * config = NULL;
+	struct phy_config *config = NULL;
+
 	config = phy316_get_configs(hdmi, mpixelclock / 1000, hdmi->previous_mode.hdisplay, hdmi->previous_mode.vdisplay,
 								COLOR_DEPTH_8, PIXEL_REPETITION_OFF);
-	if(!config){
+	if (!config) {
 		printf("OUTPUT SIZE OR CLOCK IS NOT SUPPORTED\n");
 		return -ETIMEDOUT;
 	}
@@ -1048,7 +1043,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			drm_scdc_readb(&hdmi->adap, SCDC_SINK_VERSION, &bytes);
 			drm_scdc_writeb(&hdmi->adap, SCDC_SOURCE_VERSION,
 					bytes);
-			if(vmode->mtmdsclock > 340000000)
+			if (vmode->mtmdsclock > 340000000)
 				soph_dw_hdmi_scrambling_enable(hdmi, 1, true);
 			else
 				soph_dw_hdmi_scrambling_enable(hdmi, 1, false);
@@ -1090,7 +1085,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 {
 	const u16 (*csc_coeff)[3][4] = &csc_coeff_default;
-	unsigned i;
+	unsigned int i;
 	u32 csc_scale = 1;
 	int enc_out_rgb, enc_in_rgb;
 
@@ -1818,10 +1813,9 @@ void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 				 hdmi->sample_rate);
 }
 
-#if 0
 static int dw_hdmi_hdcp_load_key(struct dw_hdmi *hdmi)
 {
-	int i, j, ret, val;
+	int i, j, val;
 	struct hdcp_keys *hdcp_keys;
 
 	val = sizeof(*hdcp_keys);
@@ -1831,12 +1825,7 @@ static int dw_hdmi_hdcp_load_key(struct dw_hdmi *hdmi)
 
 	memset(hdcp_keys, 0, val);
 
-	ret = vendor_storage_read(HDMI_HDCP1X_ID, hdcp_keys, val);
-	if (ret < val) {
-		printf("HDCP: read size %d\n", ret);
-		free(hdcp_keys);
-		return -EINVAL;
-	}
+	memcpy(hdcp_keys, (void *)HDMI_HDCP_KEY_ADDR, HDCP_KEY_SIZE);
 
 	if (hdcp_keys->KSV[0] == 0x00 &&
 	    hdcp_keys->KSV[1] == 0x00 &&
@@ -1868,8 +1857,8 @@ static int dw_hdmi_hdcp_load_key(struct dw_hdmi *hdmi)
 
 	/* Enable decryption logic */
 	hdmi_writeb(hdmi, 1, HDMI_HDCPREG_RMCTL);
-	hdmi_writeb(hdmi, hdcp_keys->seeds[0], HDMI_HDCPREG_SEED1);
-	hdmi_writeb(hdmi, hdcp_keys->seeds[1], HDMI_HDCPREG_SEED0);
+	hdmi_writeb(hdmi, hdcp_keys->seeds[1], HDMI_HDCPREG_SEED1);
+	hdmi_writeb(hdmi, hdcp_keys->seeds[0], HDMI_HDCPREG_SEED0);
 
 	/* Write encrypt device private key */
 	for (i = 0; i < DW_HDMI_HDCP_DPK_LEN - 6; i += 7) {
@@ -1884,7 +1873,6 @@ static int dw_hdmi_hdcp_load_key(struct dw_hdmi *hdmi)
 	free(hdcp_keys);
 	return 0;
 }
-#endif
 
 static void hdmi_tx_hdcp_config(struct dw_hdmi *hdmi,
 				const struct drm_display_mode *mode)
@@ -1929,7 +1917,7 @@ static void hdmi_tx_hdcp_config(struct dw_hdmi *hdmi,
 		  HDMI_A_HDCPCFG0);
 
 	if (!(hdmi_readb(hdmi, HDMI_HDCPREG_RMSTS) & 0x3f))
-		// dw_hdmi_hdcp_load_key(hdmi);
+		dw_hdmi_hdcp_load_key(hdmi);
 
 	hdmi_modb(hdmi, HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE,
 		  HDMI_FC_INVIDCONF_HDCP_KEEPOUT_MASK,
@@ -2161,8 +2149,9 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	struct dw_hdmi *hdmi;
 	struct drm_display_mode *mode_buf;
 	ofnode hdmi_node = conn->dev->node_;
-	const char str[] = "SE9";
-	const char* se9_flag;
+	static const char str[] = "SE9";
+	const char *se9_flag;
+	const char *hdcp_status;
 
 	hdmi = malloc(sizeof(struct dw_hdmi));
 	if (!hdmi)
@@ -2177,15 +2166,19 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 
 	memset(mode_buf, 0, MODE_LEN * sizeof(struct drm_display_mode));
 
-	hdmi->regs = (void*)devfdt_get_addr(conn->dev);
+	hdmi->regs = (void *)devfdt_get_addr(conn->dev);
 
 	if (ofnode_read_bool(hdmi_node, "scramble-low-rates"))
 		hdmi->scramble_low_rates = true;
 
-	if (ofnode_read_bool(hdmi_node, "hdcp1x-enable"))
-		hdmi->hdcp1x_enable = true;
-	else
+	hdcp_status = fdt_getprop(gd->fdt_blob, ofnode_to_offset(hdmi_node),
+				   "hdcp1x-enable", NULL);
+	if (hdcp_status) {
+		if (strcmp(hdcp_status, "true") == 0)
+			hdmi->hdcp1x_enable = true;
+	} else {
 		hdmi->hdcp1x_enable = false;
+	}
 
 	if (ofnode_read_bool(hdmi_node, "force_output_bus_format_RGB") ||
 	    ofnode_read_bool(hdmi_node, "unsupported-yuv-input"))
@@ -2195,10 +2188,9 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 
 	se9_flag = fdt_getprop(gd->fdt_blob, ofnode_to_offset(hdmi_node),
 				   "label", NULL);
-	if(se9_flag) {
-		if(strcmp(se9_flag, str) == 0) {
+	if (se9_flag) {
+		if (strcmp(se9_flag, str) == 0)
 			hdmi->is_se9 = true;
-		}
 	} else {
 		hdmi->is_se9 = false;
 	}
@@ -2215,10 +2207,6 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	 */
 	dw_hdmi_i2c_init(hdmi);
 
-#if 0
-	conn_state->output_if |= VOP_OUTPUT_IF_HDMI0;
-	conn_state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-#endif
 	// hdmi->dev_type = pdata->dev_type;
 	hdmi->plat_data = pdata;
 	hdmi->edid_data.mode_buf = mode_buf;

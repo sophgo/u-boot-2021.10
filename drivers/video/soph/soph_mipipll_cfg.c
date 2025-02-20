@@ -2,8 +2,8 @@
 #include "soph_vo_sys_reg.h"
 #include "soph_mipipll_cfg.h"
 
-#define MIN(a, b) (((a) < (b))?(a):(b))
-#define MAX(a, b) (((a) > (b))?(a):(b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 static void _cal_pll_reg(u8 dsi_id, u32 clkkHz, u32 VCORx10000, u32 *reg_txpll, u32 *reg_set, u32 factor)
 {
@@ -31,7 +31,7 @@ static void _cal_pll_reg(u8 dsi_id, u32 clkkHz, u32 VCORx10000, u32 *reg_txpll, 
 void mipi_dphy_set_pll(u8 dsi_id, u32 clkkHz, u8 lane, u8 bits)
 {
 	u32 VCORx10000 = clkkHz * bits * 10 / lane;
-	u32 reg_txpll,reg_set;
+	u32 reg_txpll, reg_set;
 
 	_cal_pll_reg(dsi_id, clkkHz, VCORx10000, &reg_txpll, &reg_set, 1800000);
 	_reg_write_mask(REG_DSI_PHY_TXPLL_SETUP(dsi_id), 0x30007ff, reg_txpll);
@@ -43,8 +43,8 @@ void mipi_dphy_set_pll(u8 dsi_id, u32 clkkHz, u8 lane, u8 bits)
 	_reg_write_mask(REG_FPLL_CTRL5(dsi_id), BIT(0), 0);
 }
 
-void mipipll_clk_set(u32 ClkKhz)
+void mipipll_clk_set(u32 clkkhz)
 {
 	_reg_write(REG_DSI_PHY_POWER_DOWN_CFG(1), 0x0);
-	mipi_dphy_set_pll(1, ClkKhz, 4, 24);
+	mipi_dphy_set_pll(1, clkkhz, 4, 24);
 }

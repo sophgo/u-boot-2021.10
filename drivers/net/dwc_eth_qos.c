@@ -143,7 +143,7 @@ static int eqos_mdio_wait_idle(struct eqos_priv *eqos)
 {
 	return wait_for_bit_le32(&eqos->mac_regs->mdio_address,
 				 EQOS_MAC_MDIO_ADDRESS_GB, false,
-				 1000000, true);
+				 1000000, false);
 }
 
 #if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
@@ -429,6 +429,7 @@ static int eqos_adjust_link(struct udevice *dev)
 	struct eqos_priv *eqos = dev_get_priv(dev);
 	int ret;
 	bool en_calibration;
+	uint32_t div_config = 0;
 
 	debug("%s(dev=%p):\n", __func__, dev);
 
@@ -445,18 +446,29 @@ static int eqos_adjust_link(struct udevice *dev)
 	case SPEED_1000:
 		en_calibration = true;
 		ret = eqos_set_gmii_speed(dev);
+		div_config = 0x1;
 		break;
 	case SPEED_100:
 		en_calibration = true;
 		ret = eqos_set_mii_speed_100(dev);
+		div_config = 0x280009;
 		break;
 	case SPEED_10:
 		en_calibration = false;
 		ret = eqos_set_mii_speed_10(dev);
+		div_config = 0x01900009;
 		break;
 	default:
 		pr_err("invalid speed %d", eqos->phy->speed);
 		return -EINVAL;
+	}
+
+	if (div_config != 0) {
+		if (eqos->regs  == 0x290e0000)
+			writel(div_config, 0x28102100);
+		if (eqos->regs  == 0x290f0000)
+			writel(div_config, 0x28102104);
+		debug("config=%x\n", div_config);
 	}
 	if (ret < 0) {
 		pr_err("eqos_set_*mii_speed*() failed: %d", ret);
@@ -1365,7 +1377,6 @@ static int eqos_probe(struct udevice *dev)
 	eqos->tegra186_regs = (void *)(eqos->regs + EQOS_TEGRA186_REGS_BASE);
 
 	eqos->max_speed = dev_read_u32_default(dev, "max-speed", 0);
-
 	ret = eqos_probe_resources_core(dev);
 	if (ret < 0) {
 		pr_err("eqos_probe_resources_core() failed: %d", ret);

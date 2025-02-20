@@ -141,6 +141,8 @@ const struct flash_info spi_nor_ids[] = {
 		SPI_NOR_QUAD_READ | SECT_4K) },
 #endif
 	/* -------------- 1.8V support list ------------ */
+	{ INFO("GD25LQ255E", 0xc86019, 0x0, 64 * 1024, 512,
+		SPI_NOR_QUAD_READ | SECT_4K | SPI_NOR_WRSR_2B) },
 	{ INFO("GD25LQ128E", 0xc86018, 0x0, 64 * 1024, 256,
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("GD25LB512", 0xc8671A, 0x0, 64 * 1024, 1024,

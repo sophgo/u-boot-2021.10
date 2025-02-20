@@ -126,7 +126,7 @@ static struct disp_csc_matrix csc_mtrx[DISP_CSC_MAX] = {
 	},
 };
 
-static void get_buffer_config(DISP_FORMAT_E pixel_format, u64 pAddr, struct disp_cfg* cfg)
+static void get_buffer_config(DISP_FORMAT_E pixel_format, u64 pAddr, struct disp_cfg *cfg)
 {
 	u8  bit_width = 8;
 	u8  plane_num = 0;
@@ -283,11 +283,10 @@ static void disp_set_csc(u8 disp_id, struct disp_csc_matrix *cfg)
 
 static void disp_set_in_csc(struct soph_crtc *crtc, enum disp_csc csc)
 {
-	if (csc == DISP_CSC_NONE) {
+	if (csc == DISP_CSC_NONE)
 		_reg_write(REG_DISP_IN_CSC0(crtc->disp_id), 0);
-	} else if (csc < DISP_CSC_MAX) {
+	else if (csc < DISP_CSC_MAX)
 		disp_set_csc(crtc->disp_id, &csc_mtrx[csc]);
-	}
 
 	crtc->disp_cfg.in_csc = csc;
 }
@@ -396,6 +395,7 @@ static int disp_set_rect(struct soph_crtc *crtc, struct disp_rect rect)
 static void disp_set_mem(struct soph_crtc *crtc, struct disp_mem *mem)
 {
 	enum drm_intf intf;
+
 	disp_reg_set_shadow_mask(crtc, true);
 
 	_reg_write(REG_DISP_OFFSET(crtc->disp_id),
@@ -425,11 +425,10 @@ static void disp_set_bw_cfg(u32 fmt, u32 disp_id)
 	} else {
 		_reg_write(REG_DISP_LINE_BUFFER(disp_id), 0x0);
 		_reg_write(REG_DISP_RD_TH(disp_id), 0x0);
-		if(fmt == DISP_FORMAT_YUV_PLANAR_420 || fmt == DISP_FORMAT_YUV_PLANAR_422) {
+		if (fmt == DISP_FORMAT_YUV_PLANAR_420 || fmt == DISP_FORMAT_YUV_PLANAR_422)
 			_reg_write(REG_DISP_FIFO(disp_id), 0x4400480);
-		} else {
+		else
 			_reg_write(REG_DISP_FIFO(disp_id), 0x4800480);
-		}
 	}
 
 	_reg_write_mask(REG_DISP_PITCH_Y(disp_id), 0xff000000, 0xff << 24);
@@ -521,9 +520,8 @@ static int soph_disp_enable(struct display_state *state)
 	disp_enable_window_bgcolor(crtc_state->crtc_id, false);
 
 	is_enable = disp_tgen_enable(crtc_state->crtc_id, true);
-	while(is_enable != true) {
+	while (is_enable != true)
 		is_enable = disp_tgen_enable(crtc_state->crtc_id, true);
-	}
 
 	return 0;
 }
@@ -534,9 +532,8 @@ static int soph_disp_disable(struct display_state *state)
 	bool is_enable;
 
 	is_enable = disp_tgen_enable(crtc_state->crtc_id, false);
-	while(is_enable != false){
+	while (is_enable != false)
 		is_enable = disp_tgen_enable(crtc_state->crtc_id, false);
-	}
 
 	return 0;
 }

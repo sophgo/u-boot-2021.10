@@ -34,7 +34,7 @@
 
 #include <fs.h>
 
-#define LOGO_ADDR (0X102E00000)
+#define LOGO_ADDR (0x102E00000)
 
 DECLARE_GLOBAL_DATA_PTR;
 static LIST_HEAD(soph_display_list);
@@ -93,7 +93,7 @@ int soph_ofnode_get_display_mode(ofnode node, struct drm_display_mode *mode)
 	}
 
 #define FDT_GET_INT_DEFAULT(val, name, default) \
-	val = ofnode_read_s32_default(node, name, default);
+	val = ofnode_read_s32_default(node, name, default)
 
 	FDT_GET_INT(hactive, "hactive");
 	FDT_GET_INT(vactive, "vactive");
@@ -458,8 +458,7 @@ static int display_init(struct display_state *state)
 #if 0
 	if (conn->panel) {
 		/*TBD*/
-	}
-	else if (conn->bridge) {
+	} else if (conn->bridge) {
 		ret = video_bridge_read_edid(conn->bridge->dev,
 					     conn_state->edid, EDID_SIZE);
 		if (ret > 0) {
@@ -484,6 +483,7 @@ static int display_init(struct display_state *state)
 	if (!ret && conn_state->secondary) {
 #if 0
 		struct soph_connector *connector = conn_state->secondary;
+
 		if (connector->panel) {
 			if (connector->panel->funcs->get_mode) {
 				struct drm_display_mode *_mode = drm_mode_create();
@@ -808,12 +808,11 @@ void soph_load_logo(void *addr)
 	int ret;
 
 #if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
-	sprintf(cmd_all, "%s %s %s 0x%llx %s", "fatload", "mmc",
+	sprintf(cmd_all, "%s %s %s 0x%llx %s", "load", "mmc",
 			"0:1", (u64)addr, "soph_logo.bmp");
 	ret = run_command(cmd_all, 0);
-	if(ret){
+	if (ret)
 		printf("run soph load command error!\n");
-	}
 #else
 	char *misc_part_offset, *misc_part_size, *cmd;
 
@@ -836,9 +835,8 @@ void soph_load_logo(void *addr)
 			(u64)addr, misc_part_offset, misc_part_size);
 
 	ret = run_command(cmd_all, 0);
-	if(ret){
+	if (ret)
 		printf("run soph load command error!\n");
-	}
 #endif
 }
 
@@ -878,22 +876,22 @@ static int load_bmp_logo(struct display_state *s)
 	dst_size = logo->width * logo->height * logo->bpp >> 3;
 
 	if (logo->height < 0)
-	    logo->height = -logo->height;
+		logo->height = -logo->height;
 
 	/*
-	* only support 24bpp;
-	*/
+	 * only support 24bpp;
+	 */
 	if (logo->bpp == 24) {
-		dst = (void*)LOGO_ADDR;
+		dst = (void *)LOGO_ADDR;
 	} else {
 		printf("failed to display logo with bpp:%d\n", logo->bpp);
 		ret = -EINVAL;
 	}
 
 #ifdef CONFIG_LOGO_FROM_INTERNEL
-	pdst = (void*)logo_bmp;
+	pdst = (void *)logo_bmp;
 #else
-	pdst = (void*)header;
+	pdst = (void *)header;
 #endif
 
 	if (bmpdecoder(pdst, dst, logo->bpp)) {
@@ -1299,6 +1297,7 @@ static int soph_display_probe(struct udevice *dev)
 int soph_display_bind(struct udevice *dev)
 {
 	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
+
 	plat->size = DRM_SOPH_FB_WIDTH * DRM_SOPH_FB_HEIGHT * 4;
 
 	return 0;
