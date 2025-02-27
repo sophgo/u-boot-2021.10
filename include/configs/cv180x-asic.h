@@ -223,13 +223,13 @@
 	#define CONSOLEDEV "ttyS0\0"
 
 	/* config loglevel */
-        #ifndef CONFIG_BUILD_FOR_DEBUG
-                #define CONSOLE_LOGLEVEL   " loglevel=0 \0"
+	#ifndef CONFIG_BUILD_FOR_DEBUG
+		#define CONSOLE_LOGLEVEL   " loglevel=0 \0"
 		#define EARLYCON_RELEASE   " release "
-        #else
-                #define CONSOLE_LOGLEVEL   " loglevel=9 \0"
+	#else
+		#define CONSOLE_LOGLEVEL   " loglevel=4 \0"
 		#define EARLYCON_RELEASE   " "
-        #endif
+	#endif
 
         #define OTHERBOOTARGS   "othbootargs=earlycon=sbi riscv.fwsz=0x80000" EARLYCON_RELEASE CONSOLE_LOGLEVEL
 

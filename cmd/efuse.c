@@ -351,7 +351,22 @@ static CVI_S32 _CVI_EFUSE_Read(CVI_U32 addr, void *buf, CVI_U32 buf_size)
 	return ret;
 }
 #endif
+CVI_U32 CVI_EFUSE_Read_Word(CVI_U32 addr)
+{
+	CVI_U32 addr_row;
+	CVI_U32 val = 0;
 
+	if (addr >= EFUSE_SIZE)
+		return -EFAULT;
+
+	addr_row = addr / 4;
+
+	val |= cvi_efuse_read_from_phy((addr_row << 1) | 0, EFUSE_AREAD);
+
+	val |= cvi_efuse_read_from_phy((addr_row << 1) | 1, EFUSE_AREAD);
+
+	return val;
+}
 static CVI_S32 _CVI_EFUSE_Write(CVI_U32 addr, const void *buf, CVI_U32 buf_size)
 {
 	_cc_trace("addr=0x%02x\n", addr);
@@ -610,7 +625,7 @@ CVI_S32 CVI_EFUSE_IsLocked(enum CVI_EFUSE_LOCK_E lock)
 		return CVI_ERR_EFUSE_INVALID_AREA;
 	}
 
-	ret = _CVI_EFUSE_Read(CVI_EFUSE_LOCK_ADDR, &value, sizeof(value));
+	ret = CVI_EFUSE_Read_Word(CVI_EFUSE_LOCK_ADDR);
 	_cc_trace("ret=%d value=%u\n", ret, value);
 	if (ret < 0)
 		return ret;
@@ -643,7 +658,6 @@ CVI_S32 CVI_EFUSE_IsWriteLocked(enum CVI_EFUSE_LOCK_E lock)
 		_cc_error("lock (%d) is not found\n", lock);
 		return CVI_ERR_EFUSE_INVALID_AREA;
 	}
-
 	ret = _CVI_EFUSE_Read(CVI_EFUSE_LOCK_ADDR, &value, sizeof(value));
 	_cc_trace("ret=%d value=%u\n", ret, value);
 	if (ret < 0)
@@ -809,6 +823,21 @@ static int do_efusew(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 
 	return CMD_RET_FAILURE;
 }
+static int do_efuser_word(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
+{
+	uint32_t addr;
+
+	addr = simple_strtoul(argv[1], NULL, 0);
+
+	if (addr > 63 || argc != 2)
+		return CMD_RET_USAGE;
+	uint32_t val = CVI_EFUSE_Read_Word(addr << 2);
+
+	printf("addr address 0x%04x= 0x%08x\n", addr << 2, val);
+
+	return 0;
+}
 
 static int do_efusew_word(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
@@ -853,6 +882,10 @@ U_BOOT_CMD(efuser, 9, 1, do_efuser, "Read efuse",
 U_BOOT_CMD(efusew, 9, 1, do_efusew, "Write efuse",
 	   "[args..]\n"
 	   "    - args ...");
+
+U_BOOT_CMD(efuser_word, 9, 1, do_efuser_word, "Read word to efuse",
+	   "efusew_word addr value\n"
+	   "    - args address row;the address range from 0~63");
 
 U_BOOT_CMD(efusew_word, 9, 1, do_efusew_word, "Write word to efuse",
 	   "efusew_word addr value\n"

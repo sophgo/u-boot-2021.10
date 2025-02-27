@@ -2445,7 +2445,8 @@ static int mmc_startup_v4(struct mmc *mmc)
 	 *     0x2: RST_n signal is permanently disabled
 	 *     0x3: Reserved
 	 */
-#if CONFIG_IS_ENABLED(ENABLE_EMMC_HW_RESET)
+#ifdef CONFIG_ENABLE_EMMC_SET_RESET_OTP
+	pr_debug("Set emmc reset otp bit\n");
 	if (IS_MMC(mmc) && ext_csd[EXT_CSD_RST_N_FUNCTION] == 0) {
 		err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_RST_N_FUNCTION, 1);
 		if (err)

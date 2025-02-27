@@ -234,7 +234,7 @@
 		#define CONSOLE_LOGLEVEL   " loglevel=0 \0"
 		#define EARLYCON_RELEASE   " release "
 	#else
-		#define CONSOLE_LOGLEVEL   " loglevel=9 \0"
+		#define CONSOLE_LOGLEVEL   " loglevel=4 \0"
 		#define EARLYCON_RELEASE   " "
 	#endif
 	#define OTHERBOOTARGS   "othbootargs=earlycon=sbi riscv.fwsz=0x80000" EARLYCON_RELEASE CONSOLE_LOGLEVEL

@@ -55,7 +55,7 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	uint32_t size = *(uint32_t *)((uintptr_t)file + 4);
 	uint32_t offset = *(uint32_t *)((uintptr_t)file + 8);
 #endif
-#if (defined CONFIG_SPI_FLASH) || (defined CONFIG_NAND_SUPPORT)
+#if (defined CONFIG_SPI_FLASH)
 	uint32_t part_size = *(uint32_t *)((uintptr_t)file + 12);
 #endif
 	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 16);
@@ -79,10 +79,6 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	struct mtd_info *mtd = nand_info[dev];
 	u32 goodblocks = 0, blocks = 0;
 
-	// erase according part first
-	snprintf(cmd, 255, "nand erase %#x %#x;", offset, part_size);
-	pr_debug("%s\n", cmd);
-	run_command(cmd, 0);
 	// Calculate real offset when programming chunk.
 	if (offset < lastend)
 		offset = lastend;

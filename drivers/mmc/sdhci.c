@@ -675,6 +675,7 @@ static int sdhci_set_ios(struct mmc *mmc)
 {
 #endif
 	u32 ctrl;
+	u32 retry = 3;
 	struct sdhci_host *host = mmc->priv;
 	bool no_hispd_bit = false;
 
@@ -721,7 +722,15 @@ static int sdhci_set_ios(struct mmc *mmc)
 			ctrl &= ~SDHCI_CTRL_HISPD;
 	}
 
-	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+	while (sdhci_readb(host, SDHCI_HOST_CONTROL) != ctrl && retry) {
+		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+		//wait register stable
+		udelay(10);
+		retry--;
+	}
+
+	if (!retry)
+		pr_err("SDHCI set ios failed\n");
 
 	/* If available, call the driver specific "post" set_ios() function */
 	if (host->ops && host->ops->set_ios_post)
