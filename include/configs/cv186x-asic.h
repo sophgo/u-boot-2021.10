@@ -213,6 +213,16 @@
 	#define PARTS  PART_LAYOUT
 
 	/* config uart */
+#define SET_CONSOLEDEV_BASED_ON_DTS_TYPE \
+	"setenv matched wevb; " \
+	"setexpr matched sub \".*wevb.*\" 1 ${DTS_TYPE}; " \
+	"if test \"${matched}\" -eq 1; then " \
+		"setenv consoledev ttyS0; " \
+	"else " \
+		"setenv consoledev ttyS2; " \
+	"fi; " \
+	"setenv matched\0" \
+
 	#define CONSOLEDEV "ttyS0\0"
 
 	/* config loglevel */
@@ -248,6 +258,7 @@
 			"ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}:${netdev}:off " \
 			"console=${consoledev},${baudrate} ${othbootargs};\0"       \
 		"netdev=eth0\0"		\
+		"chose_consoledev=" SET_CONSOLEDEV_BASED_ON_DTS_TYPE \
 		"consoledev=" CONSOLEDEV  \
 		"baudrate=115200\0" \
 		"uImage_addr=" __stringify(UIMAG_ADDR) "\0" \
@@ -266,6 +277,7 @@
 	#else
 		#define CONFIG_EXTRA_ENV_SETTINGS	\
 		"netdev=eth0\0"		\
+		"chose_consoledev=" SET_CONSOLEDEV_BASED_ON_DTS_TYPE \
 		"consoledev=" CONSOLEDEV  \
 		"baudrate=115200\0" \
 		"uImage_addr=" __stringify(UIMAG_ADDR) "\0" \
@@ -351,7 +363,7 @@
 	#else
 		#define CONFIG_BOOTCOMMAND                                                     \
 			SHOWLOGOCMD                                                            \
-				"cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
+				"run chose_consoledev; cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
 	#endif
 
 	#if defined(CONFIG_NAND_SUPPORT)
