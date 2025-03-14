@@ -68,7 +68,7 @@ static void cv182xa_ephy_init(void)
 		mmio_clrsetbits_32(0x03009064, 0xFFFF, val);
 	} else
 		mmio_write_32(0x03009064, 0x5a5a);
-
+	mmio_write_32(0x03009064, 0x5a5a);
 	// Set Echo_I
 	// Set rg_eth_txechoiadj 0x03009054  [15:8]
 	if ((mmio_read_32(EPHY_EFUSE_VALID_BIT_BASE) & EPHY_EFUSE_TXECHORC_FLAG) ==
@@ -88,7 +88,7 @@ static void cv182xa_ephy_init(void)
 		mmio_clrsetbits_32(0x03009058, 0xFF0, val);
 	} else
 		mmio_write_32(0x03009058, 0x0bb0);
-
+	mmio_write_32(0x03009058, 0x0bb0);
 // ETH_100BaseT
 	// Set Rise update
 	mmio_write_32(0x0300905c, 0x0c10);

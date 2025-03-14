@@ -1814,6 +1814,12 @@ config CMD_SLEEP
 	help
 	  Delay execution for some time
 
+config CMD_CHIPTEMP
+	bool "chiptemp"
+	default n
+	help
+	  Detect chip temperature, unit mC
+
 config MP
 	bool "support for multiprocessor"
 	help
