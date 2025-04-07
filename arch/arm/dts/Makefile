@@ -4,6 +4,8 @@ dtb-$(CONFIG_TARGET_CVITEK) += $(CHIP)_$(CVIBOARD).dtb \
 	cv186ah_se9v1_4G.dtb \
 	cv186ah_se9b2_4G.dtb \
 	cv186ah_se9b3_4G.dtb \
+	cv186ah_se9b4_4G.dtb \
+	cv186ah_se9k1_4G.dtb \
 	cv186ah_sm9v1_4G.dtb \
 	cv186ah_wevb_4G.dtb
 
