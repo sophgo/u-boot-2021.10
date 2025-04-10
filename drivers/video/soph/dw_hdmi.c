@@ -24,6 +24,9 @@
 #define HDCP_KEY_SEED_SIZE	2
 #define HDMI_HDCP_KEY_ADDR	0x102f80000
 
+#define I2C_CLK_RATE_KHZ 25000
+#define PHY_TAB_LEN 16
+
 /*
  * Unless otherwise noted, entries in this table are 100% optimization.
  * Values can be obtained from hdmi_compute_n() but that function is
@@ -118,31 +121,17 @@ static const u16 csc_coeff_full_to_limited[3][4] = {
 };
 
 static struct phy_config phy316[] = {
-	{0, 8, HDMI_14, 0x0003, 0x0283, 0x0628, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0003, 0x0285, 0x0228, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0002, 0x1183, 0x0614, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0002, 0x1142, 0x0214, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x20C0, 0x060A, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, LT_3_40GBPS},
-	{0, 8, HDMI_14, 0x0000, 0x3040, 0x0605, LT_3_40GBPS},
-	{0, 8, HDMI_14, 0x0000, 0x3041, 0x0205, LT_3_40GBPS},
-	{0, 8, HDMI_20, 0x0640, 0x3041, 0x0205, GT_3_40GBPS},
-	{0, 8, HDMI_20, 0x0640, 0x3080, 0x0005, GT_3_40GBPS},
-};
-
-static struct phy_config phy316_se9[] = {
-	{0, 8, HDMI_14, 0x0003, 0x0283, 0x0628, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0003, 0x0285, 0x0228, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0002, 0x1183, 0x0614, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0002, 0x1142, 0x0214, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x20C0, 0x060A, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, SE9_LT_1_65GBPS},
-	{0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, SE9_LT_3_40GBPS},
-	{0, 8, HDMI_14, 0x0000, 0x3040, 0x0605, SE9_LT_3_40GBPS},
-	{0, 8, HDMI_14, 0x0000, 0x3041, 0x0205, SE9_LT_3_40GBPS},
-	{0, 8, HDMI_20, 0x0640, 0x3041, 0x0205, SE9_GT_3_40GBPS},
-	{0, 8, HDMI_20, 0x0640, 0x3080, 0x0005, SE9_GT_3_40GBPS},
+	{0, 0, 8, HDMI_14, 0x0003, 0x0283, 0x0628, LT_1_65GBPS},
+	{1, 0, 8, HDMI_14, 0x0003, 0x0285, 0x0228, LT_1_65GBPS},
+	{2, 0, 8, HDMI_14, 0x0002, 0x1183, 0x0614, LT_1_65GBPS},
+	{3, 0, 8, HDMI_14, 0x0002, 0x1142, 0x0214, LT_1_65GBPS},
+	{4, 0, 8, HDMI_14, 0x0001, 0x20C0, 0x060A, LT_1_65GBPS},
+	{5, 0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, LT_1_65GBPS},
+	{6, 0, 8, HDMI_14, 0x0001, 0x2080, 0x020A, LT_3_40GBPS},
+	{7, 0, 8, HDMI_14, 0x0000, 0x3040, 0x0605, LT_3_40GBPS},
+	{8, 0, 8, HDMI_14, 0x0000, 0x3041, 0x0205, LT_3_40GBPS},
+	{9, 0, 8, HDMI_20, 0x0640, 0x3041, 0x0205, GT_3_40GBPS},
+	{10, 0, 8, HDMI_20, 0x0640, 0x3080, 0x0005, GT_3_40GBPS},
 };
 
 struct phy_config *phy316_get_configs(struct dw_hdmi *hdmi, unsigned long mpixelclock, u16 width, u16 height,
@@ -150,53 +139,28 @@ struct phy_config *phy316_get_configs(struct dw_hdmi *hdmi, unsigned long mpixel
 {
 	debug("mpixelclock:%lu, width:%d, height:%d, color:%d, pixel:%d\n", mpixelclock, width, height, color, pixel);
 
-	if (hdmi->is_se9) {
-		if (mpixelclock >= 25175 && mpixelclock < 36000)
-			return &phy316_se9[0];
-		else if (mpixelclock >= 36000 && mpixelclock < 49500)
-			return &phy316_se9[1];
-		else if (mpixelclock >= 49500 && mpixelclock < 72000)
-			return &phy316_se9[2];
-		else if (mpixelclock >= 72000 && mpixelclock < 94500)
-			return &phy316_se9[3];
-		else if (mpixelclock >= 94500 && mpixelclock < 144000)
-			return &phy316_se9[4];
-		else if (mpixelclock >= 144000 && mpixelclock < 175500)
-			return &phy316_se9[5];
-		else if (mpixelclock >= 175500 && mpixelclock < 185625)
-			return &(phy316_se9[6]);
-		else if (mpixelclock >= 185625 && mpixelclock < 288000)
-			return &phy316_se9[7];
-		else if (mpixelclock >= 288000 && mpixelclock < 348500)
-			return &phy316_se9[8];
-		else if (mpixelclock >= 348500 && mpixelclock < 475200)
-			return &phy316_se9[9];
-		else if (mpixelclock >= 475200 && mpixelclock <= 594000)
-			return &phy316_se9[10];
-	} else {
-		if (mpixelclock >= 25175 && mpixelclock < 36000)
-			return &phy316[0];
-		else if (mpixelclock >= 36000 && mpixelclock < 49500)
-			return &phy316[1];
-		else if (mpixelclock >= 49500 && mpixelclock < 72000)
-			return &phy316[2];
-		else if (mpixelclock >= 72000 && mpixelclock < 94500)
-			return &phy316[3];
-		else if (mpixelclock >= 94500 && mpixelclock < 144000)
-			return &phy316[4];
-		else if (mpixelclock >= 144000 && mpixelclock < 175500)
-			return &phy316[5];
-		else if (mpixelclock >= 175500 && mpixelclock < 185625)
-			return &phy316[6];
-		else if (mpixelclock >= 185625 && mpixelclock < 288000)
-			return &phy316[7];
-		else if (mpixelclock >= 288000 && mpixelclock < 348500)
-			return &phy316[8];
-		else if (mpixelclock >= 348500 && mpixelclock < 475200)
-			return &phy316[9];
-		else if (mpixelclock >= 475200 && mpixelclock <= 594000)
-			return &phy316[10];
-	}
+	if (mpixelclock >= 25175 && mpixelclock < 36000)
+		return &(phy316[0]);
+	else if (mpixelclock >= 36000 && mpixelclock < 49500)
+		return &(phy316[1]);
+	else if (mpixelclock >= 49500 && mpixelclock < 72000)
+		return &(phy316[2]);
+	else if (mpixelclock >= 72000 && mpixelclock < 94500)
+		return &(phy316[3]);
+	else if (mpixelclock >= 94500 && mpixelclock < 144000)
+		return &(phy316[4]);
+	else if (mpixelclock >= 144000 && mpixelclock < 175500)
+		return &(phy316[5]);
+	else if (mpixelclock >= 175500 && mpixelclock < 185625)
+		return &(phy316[6]);
+	else if (mpixelclock >= 185625 && mpixelclock < 288000)
+		return &(phy316[7]);
+	else if (mpixelclock >= 288000 && mpixelclock < 348500)
+		return &(phy316[8]);
+	else if (mpixelclock >= 348500 && mpixelclock < 475200)
+		return &(phy316[9]);
+	else if (mpixelclock >= 475200 && mpixelclock <= 594000)
+		return &(phy316[10]);
 
 	return NULL;
 }
@@ -700,6 +664,11 @@ int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 		printf("OUTPUT SIZE OR CLOCK IS NOT SUPPORTED\n");
 		return -ETIMEDOUT;
 	}
+
+	debug("config->index x0%x\n", config->index);
+	debug("config->txterm x0%x\n", config->txterm);
+	debug("config->vlevctrl x0%x\n", config->vlevctrl);
+	debug("config->cksymtxctrl x0%x\n", config->cksymtxctrl);
 
 	dw_hdmi_phy_i2c_write(hdmi, config->oppllcfg, OPMODE_PLLCFG);
 	dw_hdmi_phy_i2c_write(hdmi, config->pllcurrctrl, PLLCURRCTRL);
@@ -2107,6 +2076,47 @@ static void dw_hdmi_dev_init(struct dw_hdmi *hdmi)
 	initialize_hdmi_mutes(hdmi);
 }
 
+static void dw_hdmi_i2c_set_divs(struct dw_hdmi *hdmi)
+{
+	unsigned long low_ns, high_ns;
+	unsigned long div_low, div_high;
+
+	/* Standard-mode */
+	if (hdmi->i2c->scl_high_ns < 4000)
+		high_ns = 4500;
+	else
+		high_ns = hdmi->i2c->scl_high_ns;
+
+	if (hdmi->i2c->scl_low_ns < 4700)
+		low_ns = 5200;
+	else
+		low_ns = hdmi->i2c->scl_low_ns;
+
+	/* Adjust to avoid overflow */
+	div_low = (I2C_CLK_RATE_KHZ * low_ns) / 1000000;
+	if ((I2C_CLK_RATE_KHZ * low_ns) % 1000000)
+		div_low++;
+
+	div_high = (I2C_CLK_RATE_KHZ * high_ns) / 1000000;
+	if ((I2C_CLK_RATE_KHZ * high_ns) % 1000000)
+		div_high++;
+
+	/* Maximum divider supported by hw is 0xffff */
+	if (div_low > 0xffff)
+		div_low = 0xffff;
+
+	if (div_high > 0xffff)
+		div_high = 0xffff;
+
+	hdmi_writeb(hdmi, div_high & 0xff, HDMI_I2CM_SS_SCL_HCNT_0_ADDR);
+	hdmi_writeb(hdmi, (div_high >> 8) & 0xff,
+			HDMI_I2CM_SS_SCL_HCNT_1_ADDR);
+
+	hdmi_writeb(hdmi, div_low & 0xff, HDMI_I2CM_SS_SCL_LCNT_0_ADDR);
+	hdmi_writeb(hdmi, (div_low >> 8) & 0xff,
+			HDMI_I2CM_SS_SCL_LCNT_1_ADDR);
+}
+
 static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 {
 	/* Software reset */
@@ -2128,6 +2138,8 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 	/* Mute DONE and ERROR interrupts */
 	hdmi_writeb(hdmi, HDMI_IH_I2CM_STAT0_ERROR | HDMI_IH_I2CM_STAT0_DONE,
 		    HDMI_IH_MUTE_I2CM_STAT0);
+
+	dw_hdmi_i2c_set_divs(hdmi);
 }
 
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi)
@@ -2149,9 +2161,9 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	struct dw_hdmi *hdmi;
 	struct drm_display_mode *mode_buf;
 	ofnode hdmi_node = conn->dev->node_;
-	static const char str[] = "SE9";
-	const char *se9_flag;
 	const char *hdcp_status;
+	u32 *phy_ability_config;
+	int phy_val, phy_table_size, i;
 
 	hdmi = malloc(sizeof(struct dw_hdmi));
 	if (!hdmi)
@@ -2186,15 +2198,6 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	else
 		hdmi->output_bus_format_rgb = false;
 
-	se9_flag = fdt_getprop(gd->fdt_blob, ofnode_to_offset(hdmi_node),
-				   "label", NULL);
-	if (se9_flag) {
-		if (strcmp(se9_flag, str) == 0)
-			hdmi->is_se9 = true;
-	} else {
-		hdmi->is_se9 = false;
-	}
-
 	mipipll_clk_set(25175);
 
 	hdmi->i2c = malloc(sizeof(struct dw_hdmi_i2c));
@@ -2203,8 +2206,18 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	hdmi->adap.ddc_xfer = dw_hdmi_i2c_xfer;
 
 	/*
-	 * use the default timing scl clock rate is about 99.6KHz.
+	 * Read high and low time from device tree. If not available use
+	 * the default timing scl clock rate is about 100KHz.
 	 */
+	hdmi->i2c->scl_high_ns =
+		ofnode_read_s32_default(hdmi_node,
+					"ddc-i2c-scl-high-time-ns", 4500);
+	hdmi->i2c->scl_low_ns =
+		ofnode_read_s32_default(hdmi_node,
+					"ddc-i2c-scl-low-time-ns", 5200);
+
+	printf("%s: hdmi->i2c->scl_high_ns is %d , hdmi->i2c->scl_low_ns is %d\n",
+			__func__, hdmi->i2c->scl_high_ns, hdmi->i2c->scl_low_ns);
 	dw_hdmi_i2c_init(hdmi);
 
 	// hdmi->dev_type = pdata->dev_type;
@@ -2212,6 +2225,42 @@ int soph_dw_hdmi_init(struct soph_connector *conn, struct display_state *state)
 	hdmi->edid_data.mode_buf = mode_buf;
 	hdmi->sample_rate = 48000;
 	conn->data = hdmi;
+
+	/* Get Phy-table value */
+	if (ofnode_get_property(hdmi_node, "phy-table", &phy_val)) {
+		if (phy_val % PHY_TAB_LEN) {
+			printf("Invalid phy cfg table format!\n");
+			return -EINVAL;
+		}
+
+		phy_ability_config = malloc(phy_val);
+		if (!phy_ability_config) {
+			printf("Malloc phy cfg table failed!\n");
+			return -ENOMEM;
+		}
+
+		memset(phy_ability_config, 0, sizeof(phy_ability_config));
+
+		phy_table_size = phy_val / PHY_TAB_LEN;
+		if (phy_table_size > ARRAY_SIZE(phy316)) {
+			printf("phy cfg table array number is out of range\n");
+			free(phy_ability_config);
+			return -EINVAL;
+		}
+
+		ofnode_read_u32_array(hdmi_node, "phy-table",
+			phy_ability_config, phy_val / sizeof(u32));
+
+		for (i = 0; i < phy_table_size; i++) {
+			if (phy_ability_config[i * 4] == phy316[i].index) {
+				phy316[i].txterm = (u16)phy_ability_config[i * 4 + 1];
+				phy316[i].vlevctrl = (u16)phy_ability_config[i * 4 + 2];
+				phy316[i].cksymtxctrl = (u16)phy_ability_config[i * 4 + 3];
+			}
+		}
+
+		free(phy_ability_config);
+	}
 
 	dw_hdmi_detect_phy(hdmi);
 	dw_hdmi_dev_init(hdmi);

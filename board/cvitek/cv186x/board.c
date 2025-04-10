@@ -50,7 +50,7 @@ static struct mm_region cv186x_mem_map[] = {
 	{
 		.virt = 0x0UL,
 		.phys = 0x0UL,
-		.size = 0x80000000UL,
+		.size = 0xF0000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE |
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
@@ -257,10 +257,24 @@ void board_show_logo(void)
 }
 #endif
 
-void hdcp_load_key(void)
+void edge_hdcp_load_key(void)
 {
 	/*Load hdmi hdcp key*/
-	run_command("load mmc 0:1 0x102f80000 hdcp_key.bin", 0);
+	#if defined(CONFIG_NVME_BOOT)
+	run_command("pci e", 0);
+	run_command("nvme scan", 0);
+	run_command("load nvme 0:1 0x102f80000 hdcp_key.bin", 0);
+	#elif defined(CONFIG_SATA_BOOT)
+	run_command("scsi scan", 0);
+	run_command("load scsi 0:1 0x102f80000 hdcp_key.bin", 0);
+	#else
+	run_command("load mmc 0:1 0x102f80000 hdcp_key.bin", 0);	//default for eMMC
+	#endif
+}
+
+void device_hdcp_load_key(void)
+{
+	run_command("load mmc 0:6 0x102f80000 hdcp_key.bin", 0);	//default for eMMC
 }
 
 /*sm9v1 pinmux init*/
@@ -522,6 +536,8 @@ void set_product_pinmux(void)
 		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b3"))
 		sm9v1_board_init();
+	else if (strstr(dtstype, "se9b4"))
+		sm9v1_board_init();
 	else if (strstr(dtstype, "sm9v2"))
 		sm9v2_board_init();
 }
@@ -650,7 +666,7 @@ void setup_sophgo_console(void)
 	if (mmio_read_8(CONSOLE_OEM_INFO) == CONSOLE_USE_UART2)//uart2
 		env_set("consoledev", "ttyS2");
 	printf("set console 0x%x\n",mmio_read_8(CONSOLE_OEM_INFO));
- }
+}
 
 int setup_sophgo_dts(void)
 {
@@ -676,9 +692,14 @@ int setup_sophgo_dts(void)
 #ifdef CONFIG_BOARD_LATE_INIT
 static void get_ether_addr_from_emmc(unsigned char *mac, int i)
 {
+	#if defined(CONFIG_SPI_FLASH)
+	//todo: read from spinor flash
+
+	#else	//default eMMC
 	run_command("mmc dev 0 2\0", 0);
 	run_command("mmc read 0x120000000 0 0x60", 0);
 	memcpy(mac, (void *)(0x120000000 + 0x40 + i*0x10), 6);
+	#endif
 }
 #define ETHER_NUM 2
 #define MAC_SIZE 6
@@ -720,7 +741,7 @@ int board_late_init(void)
 	setup_mac();
 	setup_sophgo_dts();
 	setup_sophgo_console();
-	hdcp_load_key();
+	edge_hdcp_load_key();
 #ifdef CONFIG_VIDEO_SOPH
 	board_show_logo();
 #endif
@@ -731,7 +752,8 @@ int board_late_init(void)
 int board_late_init(void)
 {
 	setup_sophgo_dts();
-	hdcp_load_key();
+	setup_sophgo_console();
+	device_hdcp_load_key();
 #ifdef CONFIG_VIDEO_SOPH
 	board_show_logo();
 #endif

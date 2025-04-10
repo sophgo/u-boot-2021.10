@@ -1575,8 +1575,6 @@ struct dw_hdmi {
 	bool output_bus_format_rgb;
 
 	struct gpio_desc hpd_gpiod;
-
-	bool is_se9;
 };
 
 void dw_hdmi_mode_valid(struct soph_connector *conn, struct dw_hdmi *hdmi, void *data);
