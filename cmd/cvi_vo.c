@@ -362,6 +362,8 @@ static int do_stopvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const arg
 {
 	int layer;
 	char *endp;
+	u32 bgcolor;
+	u16 r, g, b;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -370,6 +372,11 @@ static int do_stopvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const arg
 	if (*argv[1] == 0 || *endp != 0)
 		return CMD_RET_USAGE;
 
+	bgcolor = 0;
+	r = (bgcolor >> 20) & 0x3ff;
+	g = (bgcolor >> 10) & 0x3ff;
+	b = bgcolor & 0x3ff;
+	sclr_disp_set_window_bgcolor(r,g,b);
 	sclr_disp_enable_window_bgcolor(true);
 	return CMD_RET_SUCCESS;
 }
