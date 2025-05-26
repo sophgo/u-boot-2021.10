@@ -359,7 +359,7 @@
 	#else
 		#define CONFIG_BOOTCOMMAND                                                     \
 			SHOWLOGOCMD                                                            \
-				"cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
+				"cvi_update || run emmcboot || run norboot || run nandboot || run ramboot"
 	#endif
 
 	#if defined(CONFIG_NAND_SUPPORT)
