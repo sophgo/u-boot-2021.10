@@ -1182,6 +1182,11 @@ config CMD_NAND_TORTURE
 	help
 	  NAND torture support.
 
+config CMD_REPAIR_NAND
+	bool "nand repair"
+	help
+	  Scan the entire nand flash to mark all bad blocks.
+
 endif # CMD_NAND
 
 config CMD_NVME
