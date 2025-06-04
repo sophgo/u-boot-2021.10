@@ -1,0 +1,10 @@
+menu "Hardware crypto devices"
+
+source drivers/crypto/fsl/Kconfig
+
+config SOPHON_SPACC
+        bool "sophon spacc for aes/sha"
+        help
+          Select Crypto driver for sophon platfromd
+
+endmenu
