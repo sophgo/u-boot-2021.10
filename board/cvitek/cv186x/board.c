@@ -27,6 +27,8 @@
 #include <mmc.h>
 #include <net.h>
 #include <serial.h>
+#include <part.h>
+#include <fat.h>
 
 #ifdef CONFIG_VIDEO_SOPH
 #include <video_soph.h>
@@ -735,6 +737,13 @@ static int setup_mac(void)
 	return 0;
 }
 
+int check_ubootenv_file_exists(void)
+{
+	const char *filename = "u-boot.env";
+
+	return fat_exists(filename);
+}
+
 int board_late_init(void)
 {
 	console_record_reset_enable();
@@ -745,6 +754,12 @@ int board_late_init(void)
 #ifdef CONFIG_VIDEO_SOPH
 	board_show_logo();
 #endif
+	//check u-boot.env exist
+	if (!check_ubootenv_file_exists()) {
+		printf("save default env to /boot\n");
+		run_command("saveenv", 0);	//save default env
+	}
+
 	return 0;
 }
 #endif
