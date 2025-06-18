@@ -115,6 +115,13 @@ config PCIE_DW_SIFIVE
 	  Say Y here if you want to enable PCIe controller support on
 	  FU740.
 
+config PCIE_DW_SOPHGO
+	bool "Enable SG BM1688 PCIe"
+	select PCIE_DW_COMMON
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  CV186x.
+
 config PCIE_FSL
 	bool "FSL PowerPC PCIe support"
 	help

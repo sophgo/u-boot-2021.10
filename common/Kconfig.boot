@@ -730,6 +730,14 @@ config SPI_BOOT
 	  booted via SPI flash. This is not a must, some SoCs need this,
 	  some not.
 
+config NVME_BOOT
+	bool "Support for booting from NVME SSD"
+	default n
+	help
+	  Enabling this will make a U-Boot binary that is capable of being
+	  booted via NVME SSD. This is not a must, some SoCs need this,
+	  some not.
+
 endmenu
 
 menu "Autoboot options"

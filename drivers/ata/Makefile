@@ -19,3 +19,4 @@ obj-$(CONFIG_SANDBOX) += sata_sandbox.o
 obj-$(CONFIG_AHCI_MVEBU) += ahci_mvebu.o
 obj-$(CONFIG_SUNXI_AHCI) += ahci_sunxi.o
 obj-$(CONFIG_MTK_AHCI) += mtk_ahci.o
+obj-$(CONFIG_DWC_AHCI_CV186X) += dwc_ahci_cv186x.o

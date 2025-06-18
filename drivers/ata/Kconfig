@@ -59,6 +59,14 @@ config DWC_AHCI
 	  Enable this driver to support Sata devices through
 	  Synopsys DWC AHCI module.
 
+config DWC_AHCI_CV186X
+	bool "Enable CV186X Soc Synopsys DWC AHCI driver support"
+	select SCSI_AHCI
+	select PHY
+	depends on DM_SCSI
+	help
+	  Enable this driver to support Synopsys DWC AHCI module on CV186X Soc.
+
 config DWC_AHSATA
 	bool "Enable DWC AHSATA driver support"
 	select LIBATA

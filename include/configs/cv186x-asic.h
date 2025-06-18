@@ -345,13 +345,21 @@
 			#define CONFIG_BOOTCOMMAND                                                     \
 				"run sdboot"
 		#else
-			#define CONFIG_BOOTCOMMAND                                                     \
-				"cvi_update || load mmc 0:1 ${scriptaddr} boot.scr.emmc; source ${scriptaddr}"
+			#if defined(CONFIG_NVME_BOOT)
+				#define CONFIG_BOOTCOMMAND                                                     \
+					"cvi_update || pci e; nvme scan; load nvme 0:1 ${scriptaddr} boot.scr.nvme; source ${scriptaddr}"
+			#elif defined(CONFIG_SATA_BOOT)
+				#define CONFIG_BOOTCOMMAND                                                     \
+					"cvi_update || scsi scan; load scsi 0:1 ${scriptaddr} boot.scr.sata; source ${scriptaddr}"
+			#else	//default eMMC
+				#define CONFIG_BOOTCOMMAND                                                     \
+					"cvi_update || load mmc 0:1 ${scriptaddr} boot.scr.emmc; source ${scriptaddr} || run ramboot"
+			#endif
 		#endif
 	#else
 		#define CONFIG_BOOTCOMMAND                                                     \
 			SHOWLOGOCMD                                                            \
-				"cvi_update || run ramboot || run emmcboot || run norboot || run nandboot"
+				"cvi_update || run emmcboot || run norboot || run nandboot || run ramboot"
 	#endif
 
 	#if defined(CONFIG_NAND_SUPPORT)
