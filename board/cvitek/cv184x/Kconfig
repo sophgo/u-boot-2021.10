@@ -43,13 +43,13 @@ config SYS_CONFIG_NAME
 config CVITEK_SPI_FLASH
     bool
 	prompt "Support CVITEK SPINOR"
-    select SPI_FLASH
+	select SPI_FLASH
 	select DM
 	select DM_SPI
 	select DM_SPI_FLASH
 	select SPI_MEM
 	select CMD_SF
-    select CVI_SPIF
+	select DESIGNWARE_SPI
 
 config ENV_SIZE
     default 0x10000 if ENV_IS_IN_SPI_FLASH

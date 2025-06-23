@@ -70,7 +70,8 @@ void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 	      spl_image->flags, spl_image->entry_point, spl_image->fdt_addr);
 	fdt_addr = (u64)(spl_image->fdt_addr);
 	entry_point = (u64)(spl_image->entry_point);
-
+	// Save kernel start time
+	board_save_time_record(TIME_RECORDS_FIELD_KERNEL_START);
 	armv8_switch_to_el2((u64)fdt_addr, 0, 0, 0,
 			    (u64)switch_to_el1, ES_TO_AARCH64);
 }
@@ -88,6 +89,8 @@ void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 	image_entry_arg_t image_entry =
 		(image_entry_arg_t)(uintptr_t) spl_image->entry_point;
 	cleanup_before_linux();
+	// Save kernel start time
+	board_save_time_record(TIME_RECORDS_FIELD_KERNEL_START);
 	image_entry(0, machid, spl_image->arg);
 }
 #endif	/* CONFIG_ARM64 */
