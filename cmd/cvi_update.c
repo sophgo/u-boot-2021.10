@@ -502,6 +502,11 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 		env_save();
 	}
 #endif
+#if defined(CONFIG_EFUSE_ENABLE_FASTBOOT)
+	// Only update success, set fastboot flag
+	if (ret == 0)
+		run_command("efusew FASTBOOT", 0);
+#endif
 	return ret;
 }
 

@@ -472,6 +472,11 @@ CVI_S32 CVI_EFUSE_EnableFastBoot(void)
 	CVI_S32 ret = 0;
 	CVI_U32 chip = 0;
 
+	if (CVI_EFUSE_IsFastBootEnabled() == CVI_SUCCESS) {
+		printf("Fast Boot is already enabled.\n");
+		return CVI_SUCCESS;
+	}
+
 	chip = mmio_read_32(0x0300008c);
 
 	ret = _CVI_EFUSE_Read(CVI_EFUSE_SW_INFO, &value, sizeof(value));
@@ -496,9 +501,16 @@ CVI_S32 CVI_EFUSE_EnableFastBoot(void)
 	if (ret < 0)
 		return ret;
 
-	if ((chip & 0xF) == 0xC) {
-		value |= 0x1E1E64; // AUX0
+	if ((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) { // 181XC (X <= 3)
+		value |= 0x1E1E64; // CV181X-AUX0
 		if (value != 0x1E1E64) {
+			_cc_trace("CUSTOMER value=%u\n", value);
+			return CVI_FAILURE;
+		}
+	} else if (((chip & 0xFFF0F) == 0x1800C || (chip & 0xFFF0F) == 0x1800B)
+					&& ((chip >> 4) & 0xF) <= 3) { // CV180X (X <= 3)
+		value |= 0x1E1564; // CV180X-AUX0
+		if (value != 0x1E1564) {
 			_cc_trace("CUSTOMER value=%u\n", value);
 			return CVI_FAILURE;
 		}
@@ -547,9 +559,15 @@ CVI_S32 CVI_EFUSE_IsFastBootEnabled(void)
 	if (ret < 0)
 		return ret;
 
-	if ((chip & 0xF) == 0xC) {
+	if ((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) { // 181XC (X <= 3)
 		if (value == 0x1E1E64)
-			return CVI_SUCCESS; // AUX0
+			return CVI_SUCCESS; // CV181X-AUX0
+		else
+			return CVI_FAILURE;
+	} else if (((chip & 0xFFF0F) == 0x1800C || (chip & 0xFFF0F) == 0x1800B)
+					&& ((chip >> 4) & 0xF) <= 3) { // CV180X (X <= 3)
+		if (value == 0x1E1564)
+			return CVI_SUCCESS; // CV180X-AUX0
 		else
 			return CVI_FAILURE;
 	} else {

@@ -109,7 +109,9 @@
 
 #ifdef CONFIG_NAND_SUPPORT
 	/*#define CONFIG_ENV_IS_IN_NAND*/ /* env in nand flash */
+#ifndef CONFIG_CMD_NAND
 	#define CONFIG_CMD_NAND
+#endif
 	#define CONFIG_SYS_MAX_NAND_DEVICE	 1
 
 	#define CONFIG_NAND_FLASH_CVSNFC

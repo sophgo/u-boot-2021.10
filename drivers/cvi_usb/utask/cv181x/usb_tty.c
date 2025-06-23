@@ -873,6 +873,9 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 #endif // USB_RW_EFUSE
 	case CVI_USB_REBOOT:
 		NOTICE("CVI_USB_REBOOT\n");
+#ifdef CONFIG_EFUSE_ENABLE_FASTBOOT
+		run_command("efusew FASTBOOT", 0);
+#endif
 		// software_root_reset(); // Mark_to_do
 		mmio_setbits_32(TOP_BASE + 0x8, 0x4); // wdt reset enable
 		mmio_write_32(WATCHDOG_BASE + 0x4,
@@ -883,6 +886,13 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 			      0x13); // Response mode and enable WDT
 		break;
 
+#ifdef CONFIG_CMD_REPAIR_NAND
+	case CVI_USB_REPAIR_NAND:
+		NOTICE("CVI_USB_REPAIR_NAND\n");
+		run_command("repair_nand", 0);
+		sendInReq(length, CVI_USB_REPAIR_NAND, bulkResetOutReq, NULL, 0);
+		break;
+#endif // CONFIG_CMD_REPAIR_NAND
 	default:
 		VERBOSE("token not defined:[%d]\n", msg->header.token);
 		resetOutReq();

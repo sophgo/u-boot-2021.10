@@ -34,7 +34,7 @@ int nand_spl_load_image(uint32_t offs, unsigned int size, void *dst)
 	while (block <= lastblock) {
 		if (!nand_block_isbad(mtd, block * block_size)) {
 			while (page < (block + 1) * page_count) {
-				cvsnfc_read_page_raw(mtd, &nand_chip, dst, 0, page);
+				cvsnfc_read_page(mtd, &nand_chip, dst, 0, page);
 
 				if (unlikely(page_offset)) {
 					memmove(dst, dst + page_offset, page_size);
