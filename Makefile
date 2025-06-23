@@ -799,7 +799,7 @@ UBOOTINCLUDE    := \
 			-I$(srctree)/arch/arm/thumb1/include)) \
 	-I$(srctree)/arch/$(ARCH)/include \
 	-include $(srctree)/include/linux/kconfig.h
-
+	
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 
 # FIX ME
@@ -1149,6 +1149,11 @@ dtbs: dts/dt.dtb
 	@:
 dts/dt.dtb: u-boot
 	$(Q)$(MAKE) $(build)=dts dtbs
+ifeq ($(CONFIG_FIT_SIGNATURE),y)
+	@echo "  PUBKEY  $@"
+	$(BUILD_PATH)/tools/common/prebuild/mkimage -K $@ -r -k $(RAMDISK_PATH)/keys/ -f $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/multi.its $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/multi.itb
+	@echo "Public key embedded into $@"
+endif
 
 quiet_cmd_copy = COPY    $@
       cmd_copy = cp $< $@

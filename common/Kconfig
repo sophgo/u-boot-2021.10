@@ -563,6 +563,32 @@ endmenu		# Init options
 
 menu "Security support"
 
+config KERNEL_SECURE_BOOT_SUPPORT
+	bool "Add secure boot support to kernel"
+	default n
+	select FIT_SIGNATURE
+	select RSA
+	select CMD_HASH
+	select TOOLS_LIBCRYPTO
+	help
+	  "y" only build kernel with authentication function.
+
+config FIT_SIGNATURE
+	bool "Enable FIT signature support"
+	default n
+	
+config RSA
+	bool "Enable RSA support"
+	default n
+	
+config CMD_HASH
+	bool "Enable hash command"
+	default n
+	
+config TOOLS_LIBCRYPTO
+	bool "Enable libcrypto support"
+	default n
+
 config HASH
 	bool # "Support hashing API (SHA1, SHA256, etc.)"
 	help
