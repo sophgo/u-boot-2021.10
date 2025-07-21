@@ -468,10 +468,10 @@ void sclr_disp_set_cfg(struct sclr_disp_cfg *cfg)
 		tmp |= BIT(4);
 	if (cfg->tgen_en)
 		tmp |= BIT(7);
-	if (cfg->dw1_en)
-		tmp |= BIT(8);
-	if (cfg->dw2_en)
-		tmp |= BIT(9);
+	// if (cfg->dw1_en)
+	// 	tmp |= BIT(8);
+	// if (cfg->dw2_en)
+	// 	tmp |= BIT(9);
 
 	is_enable = sclr_disp_reg_shadow_mask(false);
 	if (!cfg->disp_from_sc) {
@@ -943,8 +943,8 @@ int sclr_dsi_set_mode(enum sclr_dsi_mode mode)
 		return 0;
 	}
 
-	if (_reg_read(reg_base + REG_SCL_DSI_MAC_EN))
-		return -1;
+	// if (_reg_read(reg_base + REG_SCL_DSI_MAC_EN))
+	// 	return -1;
 
 	_reg_write(reg_base + REG_SCL_DSI_MAC_EN, mode);
 	return 0;
@@ -961,12 +961,12 @@ int sclr_dsi_chk_mode_done(enum sclr_dsi_mode mode)
 	u32 val = 0;
 
 	if ((mode == SCLR_DSI_MODE_ESC) || (mode == SCLR_DSI_MODE_SPKT)) {
-		val = _reg_read(reg_base + REG_SCL_DSI_MAC_EN) & 0xf0;
+		val = _reg_read(reg_base + REG_SCL_DSI_MAC_EN) & 0x30;
 		return (val ^ (mode << 4)) ? -1 : 0;
 	}
 
 	if ((mode == SCLR_DSI_MODE_IDLE) || (mode == SCLR_DSI_MODE_HS)) {
-		val = _reg_read(reg_base + REG_SCL_DSI_MAC_EN) & 0x0f;
+		val = _reg_read(reg_base + REG_SCL_DSI_MAC_EN) & 0x07;
 		return (val == (mode)) ? 0 : -1;
 	}
 
@@ -1344,7 +1344,8 @@ void sclr_i80_run(void)
  */
 void sclr_ctrl_init(void)
 {
-	union sclr_intr intr_mask;
+	// union sclr_intr intr_mask;
+	union disp_intr_sel intr_mask;
 	bool disp_from_sc = false;
 
 	// init variables
@@ -1373,26 +1374,28 @@ void sclr_ctrl_init(void)
 	g_disp_cfg.drop_mode = SCL_DISP_DROP_MODE_DITHER;
 
 	// init hw
-	sclr_top_set_cfg(&g_top_cfg);
+	// sclr_top_set_cfg(&g_top_cfg);
 
 	sclr_disp_reg_shadow_sel(false);
 	sclr_disp_tgen_enable(false);
 	sclr_disp_set_cfg(&g_disp_cfg);
 
-	intr_mask.b.img_in_d_frame_end = true;
-	intr_mask.b.img_in_v_frame_end = true;
-	intr_mask.b.scl0_frame_end = true;
-	intr_mask.b.scl1_frame_end = true;
-	intr_mask.b.scl2_frame_end = true;
-	intr_mask.b.scl3_frame_end = true;
-	intr_mask.b.prog_too_late = true;
-	intr_mask.b.cmdq = true;
-	intr_mask.b.disp_frame_end = true;
-	sclr_set_intr_mask(intr_mask);
+	// intr_mask.b.img_in_d_frame_end = true;
+	// intr_mask.b.img_in_v_frame_end = true;
+	// intr_mask.b.scl0_frame_end = true;
+	// intr_mask.b.scl1_frame_end = true;
+	// intr_mask.b.scl2_frame_end = true;
+	// intr_mask.b.scl3_frame_end = true;
+	// intr_mask.b.prog_too_late = true;
+	// intr_mask.b.cmdq = true;
+	// intr_mask.b.disp_frame_end = true;
+	// sclr_set_intr_mask(intr_mask);
 
-	sclr_top_reg_done();
-	sclr_top_reg_force_up();
-	sclr_top_pg_late_clr();
+	// sclr_top_reg_done();
+	// sclr_top_reg_force_up();
+	// sclr_top_pg_late_clr();
+	intr_mask.b.disp_frame_end = true;
+	disp_set_intr_mask(intr_mask);
 }
 
 /**
@@ -1403,10 +1406,10 @@ void sclr_ctrl_init(void)
  */
 int sclr_ctrl_set_disp_src(bool disp_from_sc)
 {
-	g_top_cfg.disp_from_sc = disp_from_sc;
+	// g_top_cfg.disp_from_sc = disp_from_sc;
 	g_disp_cfg.disp_from_sc = disp_from_sc;
 
-	sclr_top_set_cfg(&g_top_cfg);
+	// sclr_top_set_cfg(&g_top_cfg);
 	sclr_disp_set_cfg(&g_disp_cfg);
 
 	return 0;
@@ -1512,4 +1515,44 @@ void sclr_disp_set_mcu_disable(u8 mode)
 void sclr_disp_set_mcu_en(u8 mode)
 {
 	_reg_write(reg_base + REG_SCL_DISP_MCU_HW_AUTO, mode ? 0x9 : 0x19);
+}
+
+
+/**
+ * disp_set_intr_mask - disp's interrupt mask.
+ *                      check 'union disp_intr' for each bit mask.
+ *
+ * @param inst: instance of display
+ * @param disp_intr: On/Off ctrl of the interrupt.
+ */
+void disp_set_intr_mask(union disp_intr_sel disp_intr)
+{
+	_reg_write(REG_SCL_DISP_INT_SEL, disp_intr.raw);
+
+	//online frame done should mask odma path frame done,
+	//Because this is a problem left by A2
+	_reg_write_mask(REG_SCL_DISP_INT_CLR, 0xff00, BIT(9));
+}
+
+/**
+ * disp_get_intr_mask - get disp's interrupt mask.
+ *
+ * @param inst: instance of display
+ * @param disp_intr: display's interrupt status.
+ */
+void disp_get_intr_mask(union disp_intr_sel *disp_intr)
+{
+	disp_intr->raw = _reg_read(REG_SCL_DISP_INT_SEL);
+}
+
+/**
+ * disp_intr_clr - clear disp's interrupt
+ *                 check 'union disp_intr_clr' for each bit mask
+ *
+ * @param inst: instance of display
+ * @param disp_intr: clear of the interrupt.
+ */
+void disp_intr_clr(union disp_intr_clr disp_intr)
+{
+	_reg_write_mask(REG_SCL_DISP_INT_CLR, 0x03, disp_intr.raw);
 }

@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <mmc.h>
 #include <image.h>
+#include <cvi_boot_mode.h>
 
 static int mmc_load_legacy(struct spl_image_info *spl_image, struct mmc *mmc,
 			   ulong sector, struct image_header *header)
@@ -226,6 +227,12 @@ static int mmc_load_image_raw_os(struct spl_image_info *spl_image,
 {
 	int ret;
 
+#if IS_ENABLED(CONFIG_CMD_BOOT_MODE)
+	ulong part_offset = BOOT_MODE_INVALID;
+	ulong part_size = 0;
+	void *uimage_addr;
+#endif
+
 #if defined(CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR)
 	unsigned long count;
 
@@ -241,8 +248,12 @@ static int mmc_load_image_raw_os(struct spl_image_info *spl_image,
 	}
 #endif /* CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR */
 
-	ret = mmc_load_image_raw_sector(
-		spl_image, mmc, CONFIG_SYS_MMCSD_RAW_MODE_KERNEL_SECTOR);
+#if IS_ENABLED(CONFIG_CMD_BOOT_MODE)
+	get_addr_part_offset_size(&uimage_addr, &part_offset, &part_size);
+	ret = mmc_load_image_raw_sector(spl_image, mmc, part_offset);
+#else
+	ret = mmc_load_image_raw_sector(spl_image, mmc, SPL_BOOT_PART_OFFSET);
+#endif
 	if (ret)
 		return ret;
 

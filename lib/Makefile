@@ -45,10 +45,11 @@ obj-y += net_utils.o
 obj-$(CONFIG_PHYSMEM) += physmem.o
 obj-y += rc4.o
 obj-$(CONFIG_SUPPORT_EMMC_RPMB) += sha256.o
-obj-$(CONFIG_RBTREE)	+= rbtree.o
 obj-$(CONFIG_BITREVERSE) += bitrev.o
-obj-y += list_sort.o
 endif
+
+obj-y += list_sort.o
+obj-$(CONFIG_RBTREE)	+= rbtree.o
 
 obj-$(CONFIG_$(SPL_TPL_)TPM) += tpm-common.o
 ifeq ($(CONFIG_$(SPL_TPL_)TPM),y)

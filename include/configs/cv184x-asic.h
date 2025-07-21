@@ -37,7 +37,7 @@
 
 /* Physical Memory Map */
 #ifdef CONFIG_DUAL_OS
-#define CONFIG_SYS_RESVIONSZ		(CVIMMAP_ION_SIZE + CVIMMAP_ALIOS_RESV_SIZE)
+#define CONFIG_SYS_RESVIONSZ		(CVIMMAP_ION_SIZE + CVIMMAP_RTOS_ION_SIZE)
 #else
 #define CONFIG_SYS_RESVIONSZ		CVIMMAP_ION_SIZE
 #define CONFIG_SYS_RESVLOGOSZ		CVIMMAP_BOOTLOGO_SIZE
@@ -128,15 +128,20 @@
 	/* For CMD_UBI && CMD_UBIFS */
 	#define CONFIG_RBTREE
 	#define CONFIG_LZO
-	//#define CONFIG_CMD_UBI
-	//#define CONFIG_CMD_UBIFS
+	#define CONFIG_MTD_UBI
+	#define CONFIG_CMD_UBI
+	#define CONFIG_CMD_UBIFS
 	#define CONFIG_MTD_UBI_WL_THRESHOLD 4096
-	#define CONFIG_MTD_UBI_BEB_LIMIT 20
+	#define CONFIG_MTD_UBI_BEB_LIMIT 1
 	#define NANDBOOT_V2
 #endif /* CONFIG_NAND_SUPPORT */
 
 #ifdef CONFIG_SPL_NAND_SUPPORT
-#define CONFIG_NAND_FLASH_CVSNFC_SPL
+	#define CONFIG_NAND_FLASH_CVSNFC_SPL
+	#define CONFIG_SPL_ENV_SUPPORT
+	#define CONFIG_MTD_UBI
+	#define CONFIG_CMD_UBI
+	#define CONFIG_CMD_UBIFS
 #endif /* CONFIG_SPL_NAND_SUPPORT */
 
 #ifdef CONFIG_NAND_FLASH_CVSNFC
@@ -199,7 +204,7 @@
 
 	#ifdef CONFIG_BOOTLOGO
 		#define LOGO_RESERVED_ADDR __stringify(CVIMMAP_BOOTLOGO_ADDR)//yuv load addr
-		#define LOGO_READ_ADDR "0x84080000" //jpeg load addr
+		#define LOGO_READ_ADDR "0x80800000" //jpeg load addr
 		#define VO_ALIGNMENT "16"
 		#define LOGOSIZE "0x80000" //jpeg max size
 	#endif
@@ -214,28 +219,47 @@
 	#endif
 
 	/* config root */
-	#ifdef CONFIG_NAND_SUPPORT
+	#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPL_NAND_SUPPORT)
 		#ifdef CONFIG_SKIP_RAMDISK
 			#ifdef CONFIG_ROOTFS_RW
 				#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0 rw root=ubi0:ROOTFS rootfstype=ubifs"
+				#ifdef CONFIG_ROOTFS_B
+				#define ROOTARGSB "ubi.mtd=ROOTFS_B ubi.block=0,0 rw root=ubi0:ROOTFS_B rootfstype=ubifs"
+				#endif
 			#else
 				#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
+				#ifdef CONFIG_ROOTFS_B
+				#define ROOTARGSB "ubi.mtd=ROOTFS_B ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
+				#endif
 			#endif
 		#else
 			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0"
 		#endif /* CONFIG_SKIP_RAMDISK */
 	#elif defined(CONFIG_EMMC_SUPPORT)
 		#ifdef CONFIG_ROOTFS_RW
-			#define ROOTARGS "rootfstype=ext4 rootwait rw root=" ROOTFS_DEV
+			#define ROOTARGS "rootfstype=ext4 rootwait rw _a root=" ROOTFS_DEV
+			#ifdef CONFIG_ROOTFS_B
+			#define ROOTARGSB "rootfstype=ext4 rootwait rw _b root=" ROOTFS_DEV_B
+			#endif
 		#else
-			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+			#define ROOTARGS "rootfstype=squashfs rootwait ro _a root=" ROOTFS_DEV
+			#ifdef CONFIG_ROOTFS_B
+			#define ROOTARGSB "rootfstype=squashfs rootwait ro _b root=" ROOTFS_DEV_B
+			#endif
 		#endif
 	#else
 		#ifdef CONFIG_ROOTFS_RW
 			#error "spi flash is not supporte rootfs rw yet"
 		#else
-			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+			#define ROOTARGS "rootfstype=squashfs rootwait ro _a root=" ROOTFS_DEV
+			#ifdef CONFIG_ROOTFS_B
+			#define ROOTARGSB "rootfstype=squashfs rootwait ro _b root=" ROOTFS_DEV_B
+			#endif
 		#endif
+	#endif
+
+	#ifdef CONFIG_ROOTFS_RECOVERY
+	#define ROOTARGSR " _r "
 	#endif
 
 	/* BOOTARGS */
@@ -259,7 +283,7 @@
 		#define CONSOLE_LOGLEVEL   " loglevel=9 \0"
 		#define EARLYCON_RELEASE   " "
 	#endif
-	#define OTHERBOOTARGS   "othbootargs=earlycon=sbi " RISCV_OPENSBI_FWSIZE EARLYCON_RELEASE CONSOLE_LOGLEVEL
+	#define OTHERBOOTARGS   "othbootargs=earlycon " RISCV_OPENSBI_FWSIZE EARLYCON_RELEASE CONSOLE_LOGLEVEL
 
 	/* config mtdids */
 	#ifdef CONFIG_NAND_SUPPORT
@@ -342,22 +366,37 @@
 	/* 0x4330058 : DMA reset */
 	/* 0x3000154 : restore DMA remap to 0 */
 
-		#define CONFIG_NANDBOOTCOMMAND \
+		#if defined(CONFIG_CMD_BOOT_MODE)
+			#define CONFIG_NANDBOOTCOMMAND \
+				"loadboot;" \
+				SET_BOOTARGS \
+				"mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
+				UBOOT_VBOOT_BOOTM_COMMAND
+		#else
+			#define CONFIG_NANDBOOTCOMMAND \
 				SET_BOOTARGS \
 				"nand read ${uImage_addr} BOOT;" \
 				"mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
 				UBOOT_VBOOT_BOOTM_COMMAND
+		#endif
 	#elif defined(CONFIG_SPI_FLASH)
 		#define CONFIG_NORBOOTCOMMAND \
-				SET_BOOTARGS \
-				"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
-				UBOOT_VBOOT_BOOTM_COMMAND
+			SET_BOOTARGS \
+			"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+			UBOOT_VBOOT_BOOTM_COMMAND
 	#elif defined(CONFIG_EMMC_SUPPORT)
-		#define CONFIG_EMMCBOOTCOMMAND \
+		#if defined(CONFIG_CMD_BOOT_MODE)
+			#define CONFIG_EMMCBOOTCOMMAND \
+				"loadboot;" \
+				SET_BOOTARGS \
+				UBOOT_VBOOT_BOOTM_COMMAND
+		#else
+			#define CONFIG_EMMCBOOTCOMMAND \
 				SET_BOOTARGS \
 				"mmc dev 0 ;"		\
-				"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;"		\
+				"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;"	\
 				UBOOT_VBOOT_BOOTM_COMMAND
+		#endif
 	#endif
 
 #else
@@ -370,6 +409,14 @@
 #define CVI_SPL_BOOTAGRS \
 	PARTS " " \
 	ROOTARGS " " \
+	"console=ttyS0,115200 earlycon=sbi " RISCV_OPENSBI_FWSIZE CONSOLE_LOGLEVEL
+#define CVI_SPL_BOOTAGRSB \
+	PARTS " " \
+	ROOTARGSB " " \
+	"console=ttyS0,115200 earlycon=sbi " RISCV_OPENSBI_FWSIZE CONSOLE_LOGLEVEL
+#define CVI_SPL_BOOTAGRSR \
+	PARTS " " \
+	ROOTARGSR " " \
 	"console=ttyS0,115200 earlycon=sbi " RISCV_OPENSBI_FWSIZE CONSOLE_LOGLEVEL
 
 #endif /* __CV184X_ASIC_H__ */

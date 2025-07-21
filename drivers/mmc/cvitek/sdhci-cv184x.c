@@ -581,7 +581,7 @@ static int cvi_sdhci_probe(struct udevice *dev)
 		mmio_write_32(cvi_host->pll_reg, MMC_MAX_CLOCK_DIV_VALUE);
 
 		pr_debug("Be sure to switch clock source to PLL\n");
-		mmio_clrbits_32(CLOCK_BYPASS_SELECT_REGISTER, BIT(4) | BIT(3));
+		mmio_clrbits_32(CLOCK_BYPASS_SELECT_REGISTER, cvi_host->pll_index);
 		pr_debug("XTAL->PLL reg = 0x%x\n", mmio_read_32(CLOCK_BYPASS_SELECT_REGISTER));
 
 		pr_debug("eMMC/SD CLK is %d in ASIC\n", host->max_clk);

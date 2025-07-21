@@ -151,6 +151,13 @@ void _cal_pll_reg(u32 clkkHz, u32 VCOR_10000, u32 *reg_txpll, u32 *reg_set, u32 
 
 	*reg_set = ((u64)(factor * loop_gain1) << 26) / VCOC_1000;
 
+	if (bt_div) {
+		vi_sys_set_clk_ctrl2(0);
+		reg_disp_div_sel >>= 1;
+	} else {
+		vi_sys_set_clk_ctrl2(0x2);
+	}
+
 	_reg_write_mask(reg_base + REG_DSI_PHY_TXPLL, 0x300000, div_loop << 20);
 
 	*reg_txpll = (reg_div_sel << 10) | (reg_divout_sel << 8) | reg_disp_div_sel;
@@ -164,9 +171,9 @@ void _cal_pll_reg(u32 clkkHz, u32 VCOR_10000, u32 *reg_txpll, u32 *reg_set, u32 
 	pr_info("vip_sy : bt_div(%d)\n", bt_div);
 }
 
-void vip_sys_clk_setting(u32 value)
+void vi_sys_set_clk_ctrl2(u32 value)
 {
-	vip_sys_reg_write_mask(VIP_SYS_VIP_CLK_CTRL0, 0xFFFFFFFF, value);
+	vip_sys_reg_write_mask(VI_SYS_VI_CLK_CTRL2, 0xFFFFFFFF, value);
 }
 
 void dphy_lvds_set_pll(u32 clkkHz, u8 link)

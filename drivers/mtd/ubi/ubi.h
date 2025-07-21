@@ -811,6 +811,9 @@ int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list);
 int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 
+struct ubi_volume *ubi_find_volume(char *volume);
+int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id, bool skipcheck);
+
 /* upd.c */
 int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 		     long long bytes);

@@ -368,6 +368,96 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 	return 0;
 }
 
+
+static int spl_load_fit_image_ramdisk(struct spl_load_info *info, ulong sector,
+			      const struct spl_fit_info *ctx, int node,
+			      struct spl_image_info *image_info)
+{
+	int offset;
+	size_t length;
+	int len;
+	ulong load_addr;
+	void *src;
+	ulong overhead;
+	int nr_sectors;
+	uint8_t image_comp = -1, type = -1;
+	const void *data;
+	const void *fit = ctx->fit;
+	bool external_data = false;
+
+	if (IS_ENABLED(CONFIG_SPL_FPGA) ||
+	    (IS_ENABLED(CONFIG_SPL_OS_BOOT) && IS_ENABLED(CONFIG_SPL_GZIP))) {
+		if (fit_image_get_type(fit, node, &type))
+			puts("Cannot get image type.\n");
+		else
+			debug("%s ", genimg_get_type_name(type));
+	}
+
+	if (IS_ENABLED(CONFIG_SPL_GZIP) || IS_ENABLED(CONFIG_SPL_LZMA) || IS_ENABLED(CONFIG_SPL_LZ4)) {
+		fit_image_get_comp(fit, node, &image_comp);
+		debug("%s ", genimg_get_comp_name(image_comp));
+	}
+
+	if (!fit_image_get_data_position(fit, node, &offset)) {
+		external_data = true;
+	} else if (!fit_image_get_data_offset(fit, node, &offset)) {
+		offset += ctx->ext_data_offset;
+		external_data = true;
+	}
+
+	if (external_data) {
+		void *src_ptr;
+
+		/* External data */
+		if (fit_image_get_data_size(fit, node, &len))
+			return -ENOENT;
+
+		src_ptr = map_sysmem(ALIGN(load_addr, ARCH_DMA_MINALIGN), len);
+		length = len;
+
+		overhead = get_aligned_image_overhead(info, offset);
+		nr_sectors = get_aligned_image_size(info, length, offset);
+
+		if (info->read(info,
+			       sector + get_aligned_image_offset(info, offset),
+			       nr_sectors, src_ptr) != nr_sectors)
+			return -EIO;
+
+		debug("External data: dst=%p, offset=%x, size=%lx\n",
+		      src_ptr, offset, (unsigned long)length);
+		src = src_ptr + overhead;
+	} else {
+		/* Embedded data */
+		if (fit_image_get_data(fit, node, &data, &length)) {
+			puts("Cannot get image data/size\n");
+			return -ENOENT;
+		}
+		load_addr = map_to_sysmem(data);
+		debug("Embedded data: dst=%lx, size=%lx\n", load_addr,
+		      (unsigned long)length);
+		src = (void *)data;	/* cast away const */
+	}
+
+	if (CONFIG_IS_ENABLED(FIT_SIGNATURE)) {
+		printf("## Checking hash(es) for Image %s ... ",
+		       fit_get_name(fit, node, NULL));
+		if (!fit_image_verify_with_data(fit, node, src, length))
+			return -EPERM;
+		puts("OK\n");
+	}
+
+	if (CONFIG_IS_ENABLED(FIT_IMAGE_POST_PROCESS))
+		board_fit_image_post_process(fit, node, &src, &length);
+
+	if (image_info) {
+		image_info->load_addr = load_addr;
+		image_info->size = length;
+	}
+
+	return 0;
+}
+
+
 static bool os_takes_devicetree(uint8_t os)
 {
 	switch (os) {
@@ -381,15 +471,17 @@ static bool os_takes_devicetree(uint8_t os)
 }
 
 
-static int spl_image_setup_libfdt(struct spl_image_info image_info, const struct spl_fit_info *ctx)
+static int spl_image_setup_libfdt(struct spl_image_info image_info,
+	struct spl_image_info ramdisk_info, const struct spl_fit_info *ctx)
 {
 	bootm_headers_t images;
 	void *blob=(void *)image_info.load_addr;
 	int of_size = image_info.size;
 	debug("error ctx->fit=0x%p, of_size=0x%x, image_info->size=0x%x\n", blob, of_size, image_info.size);
 	struct lmb *lmb;
-	images.initrd_start=0;
-	images.initrd_end=0;
+
+	images.initrd_start = ramdisk_info.load_addr;
+	images.initrd_end = ramdisk_info.load_addr + ramdisk_info.size;
 
 	ulong *initrd_start = &images.initrd_start;
 	ulong *initrd_end = &images.initrd_end;
@@ -472,8 +564,9 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 			      struct spl_load_info *info, ulong sector,
 			      const struct spl_fit_info *ctx)
 {
-	struct spl_image_info image_info;
+	struct spl_image_info image_info, ramdisk_info;
 	int node, ret = 0, index = 0;
+	int ramdisk_node = -1;
 
 	/*
 	 * Use the address following the image as target address for the
@@ -565,7 +658,15 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 	if (ret < 0)
 		return ret;
 
-	spl_image_setup_libfdt(image_info, ctx);
+	ramdisk_node = spl_fit_get_image_node(ctx, FIT_RAMDISK_PROP, 0);
+	if (ramdisk_node >= 0) {
+		ret = spl_load_fit_image_ramdisk(info, sector, ctx, ramdisk_node, &ramdisk_info);
+		if (ret)
+			return ret;
+	}
+
+	spl_image_setup_libfdt(image_info, ramdisk_info, ctx);
+
 	return ret;
 }
 

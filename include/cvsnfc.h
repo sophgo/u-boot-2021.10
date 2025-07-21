@@ -1,6 +1,8 @@
 #ifndef __CVSNFC_H__
 #define __CVSNFC_H__
 
+#ifdef CONFIG_NAND_SUPPORT
+
 #include <asm/io.h>
 #include <cvsnfc_spi_ids.h>
 
@@ -617,7 +619,7 @@ struct cvsnfc_host;
 struct cvsnfc_host {
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
-	struct cvsnfc_op spi[CONFIG_CVSNFC_MAX_CHIP];
+	struct cvsnfc_op spi[CONFIG_SYS_MAX_NAND_DEVICE];
 	struct cvsfc_cmd_option cmd_option;
 
 	void __iomem *tx_iobase;
@@ -761,5 +763,7 @@ int cvsnfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 void cvsnfc_send_cmd_erase(struct cvsnfc_host *host);
 /******************************************************************************/
+#endif
+
 #endif /* __CVSNFC_H__ */
 

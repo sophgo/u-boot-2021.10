@@ -13,6 +13,7 @@
 #include <nand.h>
 #include <linux/libfdt_env.h>
 #include <fdt.h>
+#include <cvi_boot_mode.h>
 
 uint32_t __weak spl_nand_get_uboot_raw_page(void)
 {
@@ -113,6 +114,12 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 	int *src __attribute__((unused));
 	int *dst __attribute__((unused));
 
+#if IS_ENABLED(CONFIG_CMD_BOOT_MODE)
+	ulong part_offset = BOOT_MODE_INVALID;
+	ulong part_size = 0;
+	void *uimage_addr;
+#endif
+
 #ifdef CONFIG_SPL_NAND_SOFTECC
 	debug("spl: nand - using sw ecc\n");
 #else
@@ -165,7 +172,12 @@ static int spl_nand_load_image(struct spl_image_info *spl_image,
 			puts("Trying to start u-boot now...\n");
 		}
 #endif
+#if IS_ENABLED(CONFIG_CMD_BOOT_MODE)
+		get_addr_part_offset_size(&uimage_addr, &part_offset, &part_size);
+		err = spl_nand_load_element(spl_image, part_offset, header);
+#else
 		err = spl_nand_load_element(spl_image, SPL_BOOT_PART_OFFSET, header);
+#endif
 		return err;
 	}
 #endif

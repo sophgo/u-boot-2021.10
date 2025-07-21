@@ -12,6 +12,24 @@
 #define SCL_MAX_DSI_LP 16
 #define SCL_MAX_DSI_SP 2
 
+union disp_intr_sel {
+	struct {
+		unsigned int disp_frame_end : 1;
+		unsigned int disp_frame_start : 1;
+		unsigned int resv2_31 : 30;
+	} b;
+	unsigned int raw;
+};
+
+union disp_intr_clr {
+	struct {
+		unsigned int disp_frame_end : 1;
+		unsigned int disp_frame_start : 1;
+		unsigned int resv2_31 : 30;
+	} b;
+	unsigned int raw;
+};
+
 struct sclr_size {
 	u16 w;
 	u16 h;
@@ -498,4 +516,7 @@ void i80_trig(void);
 void sclr_disp_set_mcu_disable(u8 mode);
 void sclr_disp_set_mcu_en(u8 mode);
 
+void disp_set_intr_mask(union disp_intr_sel disp_intr);
+void disp_get_intr_mask(union disp_intr_sel *disp_intr);
+void disp_intr_clr(union disp_intr_clr disp_intr);
 #endif  //_CVI_SCL_H_

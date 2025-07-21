@@ -1326,7 +1326,7 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 		return ERR_PTR(tmp);
 	}
 
-	printf("spinor id = %X %X %X\n", id[0], id[1], id[2]);
+	dev_dbg(nor->dev, "spinor id = %X %X %X\n", id[0], id[1], id[2]);
 
 	info = spi_nor_ids;
 	for (; info->name; info++) {

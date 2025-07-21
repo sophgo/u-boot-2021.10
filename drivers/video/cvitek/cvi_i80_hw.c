@@ -253,10 +253,10 @@ int i80_hw_init(int dev, const HW_I80_CFG_S *i80_hw_cfg)
 
 	if (i80_hw_cfg->mode == VO_MCU_MODE_RGB565) {
 		dphy_dsi_set_pll(pixelclock * 4, 4, 24);
-		vip_sys_clk_setting(0x10080);
+		vi_sys_set_clk_ctrl2(0x10);
 	} else if (i80_hw_cfg->mode == VO_MCU_MODE_RGB888) {
 		dphy_dsi_set_pll(pixelclock * 6, 4, 24);
-		vip_sys_clk_setting(0x100c0);
+		vi_sys_set_clk_ctrl2(0x18);
 	}
 	//pinmux
 	hw_mcu_cmd_send(i80_hw_cfg->instrs.instr_cmd, i80_hw_cfg->instrs.instr_num);

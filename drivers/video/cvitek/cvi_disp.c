@@ -21,9 +21,11 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 struct cvi_vo_priv {
-	phys_addr_t regs_sc;
+	phys_addr_t regs_disp;
+	phys_addr_t regs_dsi_mac;
 	phys_addr_t regs_vip;
 	phys_addr_t regs_dphy;
+	phys_addr_t regs_vo_mac;
 	struct disp_ctrl_gpios ctrl_gpios;
 };
 
@@ -40,23 +42,33 @@ static int cvi_vo_ofdata_to_platdata(struct udevice *dev)
 {
 	struct cvi_vo_priv *priv = dev_get_priv(dev);
 
-	priv->regs_sc = devfdt_get_addr_name(dev, "sc");
-	if (priv->regs_sc == FDT_ADDR_T_NONE) {
-		debug("%s: Get VO sc address failed (ret=%llu)\n", __func__, (u64)priv->regs_sc);
+	priv->regs_disp = devfdt_get_addr_name(dev, "disp");
+	if (priv->regs_disp == FDT_ADDR_T_NONE) {
+		debug("%s: Get disp address failed (ret=%llu)\n", __func__, (u64)priv->regs_disp);
 		return -ENXIO;
 	}
-	priv->regs_vip = devfdt_get_addr_name(dev, "vip_sys");
-	if (priv->regs_vip == FDT_ADDR_T_NONE) {
-		debug("%s: Get dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_vip);
+	priv->regs_dsi_mac = devfdt_get_addr_name(dev, "dsi_mac");
+	if (priv->regs_dsi_mac == FDT_ADDR_T_NONE) {
+		debug("%s: Get dsi_mac address failed (ret=%llu)\n", __func__, (u64)priv->regs_dsi_mac);
 		return -ENXIO;
 	}
-	priv->regs_dphy = devfdt_get_addr_name(dev, "dphy");
+	priv->regs_dphy = devfdt_get_addr_name(dev, "dsi_phy");
 	if (priv->regs_dphy == FDT_ADDR_T_NONE) {
 		debug("%s: Get MIPI dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_dphy);
 		return -ENXIO;
 	}
-	debug("%s: base(sc)=%#llx base(vip)=%#llx base(dphy)=%#llx\n", __func__
-	     , priv->regs_sc, priv->regs_vip, priv->regs_dphy);
+	priv->regs_vo_mac = devfdt_get_addr_name(dev, "vo_mac");
+	if (priv->regs_vo_mac == FDT_ADDR_T_NONE) {
+		debug("%s: Get vo_mac address failed (ret=%llu)\n", __func__, (u64)priv->regs_vo_mac);
+		return -ENXIO;
+	}
+	priv->regs_vip = devfdt_get_addr_name(dev, "vi_sys");
+	if (priv->regs_vip == FDT_ADDR_T_NONE) {
+		printf("%s: Get dsi address failed (ret=%llu)\n", __func__, (u64)priv->regs_vip);
+		return -ENXIO;
+	}
+	debug("%s: base(disp)=%#llx base(dsi_mac)=%#llx base(dphy)=%#llx base(vo_mac)=%#llx base(vip_sys)=%#llx\n", __func__
+	     , priv->regs_disp, priv->regs_dsi_mac, priv->regs_dphy, priv->regs_vo_mac, priv->regs_vip);
 	return 0;
 }
 
@@ -73,9 +85,9 @@ static int cvi_vo_probe(struct udevice *dev)
 	if (!(gd->flags & GD_FLG_RELOC))
 		return 0;
 
-	sclr_set_base_addr((void *)priv->regs_sc);
+	// sclr_set_base_addr((void *)priv->regs_sc);
 	vip_set_base_addr((void *)priv->regs_vip);
-	dphy_set_base_addr((void *)priv->regs_dphy);
+	// dphy_set_base_addr((void *)priv->regs_dphy);
 
 #ifdef BOOTLOGO_ISP_RESET
 	vip_isp_clk_reset();

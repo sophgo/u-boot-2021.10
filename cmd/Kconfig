@@ -1092,6 +1092,12 @@ config CMD_MMC
 	help
 	  MMC memory mapped support.
 
+config CMD_BOOT_MODE
+	bool "boot mode command"
+	depends on MMC
+	help
+	  AB_system and reocvery tools.
+
 if CMD_MMC
 
 config CMD_BKOPS_ENABLE
@@ -2424,6 +2430,12 @@ config CMD_CVI_UPDATE
 	help
 	uboot will check flag in SRAM and thendecide if it's sd,usb,usb drive or Ethernet upgrade.
 	User can run cvi_update [usb/sd/eth] for force update without check flag.
+
+config CMD_CVI_VENDOR
+	bool "cvitek vendor command"
+	default n
+	help
+	usb vendor partition support
 
 config MMC_SPEED_MODE_SET
 	bool "set speed mode using mmc command"

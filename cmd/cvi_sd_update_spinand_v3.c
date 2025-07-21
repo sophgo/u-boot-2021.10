@@ -63,13 +63,12 @@
 /* system vector related definitions */
 #define SPI_NAND_BASE_DATA_BACKUP_COPY (2)
 
-#define MAX_BLOCK_CNT			(26)
+#define MAX_BLOCK_CNT			(20)
 /* system vector relocated definitions end here */
 
 #define SPI_NAND_FIP_RSVD_BLOCK_COUNT MAX_BLOCK_CNT // Reserved blocks for FIP.
 
-#define BACKUP_FIP_START_POSITION	13
-
+#define BACKUP_FIP_START_POSITION	9
 #define BIT(nr)			(1UL << (nr))
 
 #define PTR_INC(base, offset) (void *)((uint8_t *)(base) + (offset))

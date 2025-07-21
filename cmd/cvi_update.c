@@ -1,8 +1,11 @@
 #include <common.h>
 #include <command.h>
 #include <asm/io.h>
+#include <asm/global_data.h>
 #include <imgs.h>
 #include <ubifs_uboot.h>
+#include <serial.h>
+#include <linux/delay.h>
 #ifdef CONFIG_NAND_SUPPORT
 #include <nand.h>
 #endif
@@ -17,7 +20,6 @@
 #define OTA_MAGIC 0x5245434F
 //#define ALWAYS_USB_DRVIVE_UPGRATE
 #define HEADER_SIZE 64
-#define SECTOR_SIZE 0x200
 #define HEADER_MAGIC "CIMG"
 #define MAX_LOADSIZE (16 * 1024 * 1024)
 #ifdef CONFIG_CMD_SAVEENV
@@ -47,11 +49,11 @@ static int _storage_update(enum storage_type_e type);
 
 int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 {
-	u64 size = *(u64 *)((uintptr_t)file + 4);
-	u64 offset = *(u64 *)((uintptr_t)file + 12);
+	u32 size = *(u32 *)((uintptr_t)file + 4);
+	u64 offset = *(u64 *)((uintptr_t)file + 8);
 	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 28);
 #if (defined CONFIG_SPI_FLASH)
-	u64 part_size = *(u64 *)((uintptr_t)file + 20);
+	u64 part_size = *(u64 *)((uintptr_t)file + 16);
 #endif
 	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 28);
 	char cmd[255] = { '\0' };
@@ -88,18 +90,18 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 	}
 	//pr_debug("offset:0x%x lastoffset:0x%x, end:0x%x\n", offset, lastend, part_size + offset);
 
-	snprintf(cmd, 255, "nand write %p 0x%llx 0x%llx",
+	snprintf(cmd, 255, "nand write %p 0x%llx 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
 #elif defined(CONFIG_SPI_FLASH)
 	if (update_magic == SD_UPDATE_MAGIC && (!strcmp(file_name, "fip_spl.bin") ||
 						!strcmp(file_name, "boot.spinor"))) {
-		snprintf(cmd, 255, "sf update %p 0x%llx 0x%llx",
+		snprintf(cmd, 255, "sf update %p 0x%llx 0x%x",
 			 (void *)file + chunk_header_size, offset, size);
 	} else {
 		snprintf(cmd, 255, "sf erase %#llx %#llx;", offset, part_size);
 		pr_debug("%s\n", cmd);
 		run_command(cmd, 0);
-		snprintf(cmd, 255, "sf write %p 0x%llx 0x%llx",
+		snprintf(cmd, 255, "sf write %p 0x%llx 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
 	}
 #else
@@ -108,7 +110,7 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 
 	size = size / SECTOR_SIZE;
 	offset = offset / SECTOR_SIZE;
-	snprintf(cmd, 255, "mmc write %p 0x%llx 0x%llx",
+	snprintf(cmd, 255, "mmc write %p 0x%llx 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
 #endif
 	pr_debug("%s\n", cmd);
@@ -125,9 +127,9 @@ static int _checkHeader(char *file, char strStorage[10])
 	uint32_t version = *(uint32_t *)((uintptr_t)HEADER_ADDR + 4);
 	uint32_t chunk_sz = *(uint32_t *)((uintptr_t)HEADER_ADDR + 8);
 	uint32_t total_chunk = *(uint32_t *)((uintptr_t)HEADER_ADDR + 12);
-	uint32_t file_sz = *(uint32_t *)((uintptr_t)HEADER_ADDR + 16);
+	uint64_t file_sz = *(uint64_t *)((uintptr_t)HEADER_ADDR + 16);
 #ifdef CONFIG_NAND_SUPPORT
-	char *extra = (void *)((uintptr_t)HEADER_ADDR + 20);
+	char *extra = (void *)((uintptr_t)HEADER_ADDR + 24);
 	static char prevExtra[EXTRA_FLAG_SIZE + 1] = { '\0' };
 #endif
 	int ret = strncmp(magic, HEADER_MAGIC, 4);
@@ -138,7 +140,7 @@ static int _checkHeader(char *file, char strStorage[10])
 	}
 	printf("Header Version:%d\n", version);
 	char cmd[255] = { '\0' };
-	uint32_t pos = HEADER_SIZE;
+	uint64_t pos = HEADER_SIZE;
 #ifdef CONFIG_NAND_SUPPORT
 	// Erase partition first
 	if (strncmp(extra, prevExtra, EXTRA_FLAG_SIZE)) {
@@ -149,17 +151,17 @@ static int _checkHeader(char *file, char strStorage[10])
 	}
 #endif
 	for (int i = 0; i < total_chunk; i++) {
-		uint32_t load_size = file_sz > (MAX_LOADSIZE + chunk_sz) ?
+		uint64_t load_size = file_sz > (MAX_LOADSIZE + chunk_sz) ?
 						   MAX_LOADSIZE + chunk_sz :
 						   file_sz;
-		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0x%x;", strStorage,
+		snprintf(cmd, 255, "fatload %s %p %s 0x%llx 0x%llx;", strStorage,
 			 (void *)UPDATE_ADDR, file, load_size, pos);
 		pr_debug("%s\n", cmd);
 
 		uint32_t image_align = 512;
 
 		memset((void *)UPDATE_ADDR + load_size, 0, image_align);
-		pr_debug("clear the last block(%d) to 0 for image padding and making crc pass. offset:%d\n",
+		pr_debug("clear the last block(%d) to 0 for image padding and making crc pass. offset:%lld\n",
 			image_align, load_size);
 		ret = run_command(cmd, 0);
 		if (ret)
@@ -332,6 +334,136 @@ static int _usb_update(uint32_t usb_pid)
 	return 0;
 }
 
+DECLARE_GLOBAL_DATA_PTR;
+static void set_baudrate(unsigned int baudrate)
+{
+	mdelay(50);
+	gd->baudrate = baudrate;
+	serial_setbrg();
+	mdelay(50);
+}
+
+int uart_download(void *buf, const char *filename)
+{
+	int ret = 0;
+	char cmd[255] = { '\0' };
+
+	snprintf(cmd, 255, "loadb %p %d ", (void *)HEADER_ADDR, UART_DL_BAUDRATE);
+	ret = run_command(cmd, 0);
+	if (ret)
+		return ret;
+
+	char *magic = (void *)HEADER_ADDR;
+
+	if (!strncmp(magic, "O", 1)) {
+		printf("File %s not exist, skip it!\n", filename);
+		return ret;
+	}
+
+	uint32_t version = *(uint32_t *)((uintptr_t)HEADER_ADDR + 4);
+	uint32_t chunk_header_sz = *(uint32_t *)((uintptr_t)HEADER_ADDR + 8);
+	uint32_t total_chunk = *(uint32_t *)((uintptr_t)HEADER_ADDR + 12);
+	uint32_t file_sz = *(uint32_t *)((uintptr_t)HEADER_ADDR + 16);
+#ifdef CONFIG_NAND_SUPPORT
+	char *extra = (void *)((uintptr_t)HEADER_ADDR + 20);
+	static char prevExtra[EXTRA_FLAG_SIZE + 1] = { '\0' };
+#endif
+
+	ret = strncmp(magic, HEADER_MAGIC, 4);
+	if (ret) {
+		printf("File %s's magic number is wrong, skip it!\n", filename);
+		return ret;
+	}
+
+	printf("Header Version:%d\n", version);
+	uint32_t pos = HEADER_SIZE;
+#ifdef CONFIG_NAND_SUPPORT
+	// Erase partition first
+	if (strncmp(extra, prevExtra, EXTRA_FLAG_SIZE)) {
+		strncpy(prevExtra, extra, EXTRA_FLAG_SIZE);
+		snprintf(cmd, 255, "nand erase.part -y %s", prevExtra);
+		pr_debug("%s\n", cmd);
+		run_command(cmd, 0);
+	}
+#endif
+
+	for (int i = 0; i < total_chunk; i++) {
+		uint32_t load_size = file_sz > (MAX_LOADSIZE + chunk_header_sz) ?
+				     MAX_LOADSIZE + chunk_header_sz :
+				     file_sz;
+		snprintf(cmd, 255, "loadb %p %d ", (void *)UPDATE_ADDR, UART_DL_BAUDRATE);
+		pr_debug("%s\n", cmd);
+		ret = run_command(cmd, 0);
+		if (ret)
+			return ret;
+
+		ret = _prgImage((void *)UPDATE_ADDR, chunk_header_sz, NULL);
+		if (ret == 0) {
+			printf("program file:%s failed\n", filename);
+			break;
+		}
+		pos += load_size;
+		file_sz -= load_size;
+	}
+	return 0;
+}
+
+static int _uart_update(void)
+{
+	int ret = 0;
+	char cmd[255] = { '\0' };
+
+	printf("Start UART downloading... Change boadrate to %d\n", UART_DL_BAUDRATE);
+	set_baudrate(UART_DL_BAUDRATE);
+
+	snprintf(cmd, 255, "loadb %p %d ", (void *)HEADER_ADDR, UART_DL_BAUDRATE);
+	ret = run_command(cmd, 0);
+	if (ret) {
+		printf("Download fip.bin failed!\n");
+		return ret;
+	}
+
+#ifdef CONFIG_NAND_SUPPORT
+	snprintf(cmd, 255, "cvi_sd_update %p spinand fip", (void *)UPDATE_ADDR);
+	pr_debug("%s\n", cmd);
+	ret = run_command(cmd, 0);
+#elif defined(CONFIG_SPI_FLASH)
+	ret = run_command("sf probe", 0);
+	snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR)
+	pr_debug("%s\n", cmd);
+	ret = run_command(cmd, 0);
+#else
+	// Switch to boot partition
+	ret = run_command("mmc dev 0 1", 0);
+	snprintf(cmd, 255, "mmc write %p 0 0x800;", (void *)UPDATE_ADDR);
+	pr_debug("%s\n", cmd);
+	ret = run_command(cmd, 0);
+	snprintf(cmd, 255, "mmc write %p 0x800 0x800;", (void *)UPDATE_ADDR);
+	pr_debug("%s\n", cmd);
+	ret = run_command(cmd, 0);
+	// Switch to user partition
+	ret = run_command("mmc dev 0 0", 0);
+#endif
+	if (ret) {
+		printf("Program fip.bin failed!\n");
+		return ret;
+	}
+
+	SET_DL_COMPLETE();
+	printf("Program fip.bin done\n");
+
+	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
+		ret = uart_download((void *)HEADER_ADDR, imgs[i]);
+		if (ret) {
+			printf("Load %s failed, skip it!\n", imgs[i]);
+			continue;
+		}
+	}
+	// set_baudrate(CONFIG_BAUDRATE);
+
+	return ret;
+}
+
 static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char *const argv[])
 {
@@ -340,7 +472,10 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 
 	if (argc == 1) {
 		update_magic = readl((unsigned int *)BOOT_SOURCE_FLAG_ADDR);
-		if (update_magic == SD_UPDATE_MAGIC) {
+		if (update_magic == UART_UPDATE_MAGIC) {
+			run_command("env default -a", 0);
+			ret = _uart_update();
+		} else if (update_magic == SD_UPDATE_MAGIC) {
 			run_command("env default -a", 0);
 			ret = _storage_update(sd_dl);
 		} else if (update_magic == USB_UPDATE_MAGIC) {

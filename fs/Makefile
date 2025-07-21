@@ -21,9 +21,9 @@ obj-$(CONFIG_FS_FAT) += fat/
 obj-$(CONFIG_FS_JFFS2) += jffs2/
 obj-$(CONFIG_CMD_REISER) += reiserfs/
 obj-$(CONFIG_SANDBOX) += sandbox/
-obj-$(CONFIG_CMD_UBIFS) += ubifs/
 obj-$(CONFIG_YAFFS2) += yaffs2/
 obj-$(CONFIG_CMD_ZFS) += zfs/
 obj-$(CONFIG_FS_SQUASHFS) += squashfs/
 endif
+obj-$(CONFIG_CMD_UBIFS) += ubifs/
 obj-y += fs_internal.o

@@ -29,6 +29,7 @@ typedef struct v {
 	void *yuv_addr;
 } dec_cfg_t;
 
+#define VC_CLK_EN_REG  0x030020e8
 #define mmio_write_32(a, v) writel(v, a)
 #define mmio_read_32(a) readl(a)
 
@@ -131,6 +132,7 @@ int jpeg_decoder(void *bs_addr, void *yuv_addr, int size)
 
 	mmio_write_32((void *)TOP_DDR_ADDR_MODE_REG, (1 << DAMR_REG_VD_REMAP_ADDR_39_32_OFFSET));
 	mmio_write_32((void *)VC_REG_BASE, (mmio_read_32((void *)VC_REG_BASE) | (0x1f)));
+	mmio_write_32((void *)VC_CLK_EN_REG, 0xffffffff);
 
 #ifdef SUPPORT_INTERRUPT
 	request_irq(JPEG_CODEC_INTR_NUM, irq_handler_jpeg_codec, 0, "jpeg int", NULL);
@@ -149,7 +151,7 @@ int jpeg_decoder(void *bs_addr, void *yuv_addr, int size)
 		} else
 			JLOG(NONE, "case %d, success\n", idx);
 	}
-
+	mmio_write_32((void *)VC_CLK_EN_REG, 0xfffe7fff);
 	JLOG(NONE, "jpeg decode %s\n", all ? "failed" : "passed");
 	return all;
 }

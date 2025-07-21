@@ -70,6 +70,7 @@ obj-$(CONFIG_CMD_SQUASHFS) += sqfs.o
 obj-$(CONFIG_CMD_FLASH) += flash.o
 obj-$(CONFIG_CMD_CVI_JPEG) += cvi_jpeg.o
 obj-$(CONFIG_CMD_CVI_VO) += cvi_vo.o
+obj-$(CONFIG_CMD_CVI_VENDOR) += cvi_vendor.o
 obj-$(CONFIG_CMD_CVI_UPDATE) += cvi_update.o
 obj-$(CONFIG_CMD_CVI_UPDATE) += cvi_utask.o
 obj-$(CONFIG_NAND_SUPPORT) += cvi_sd_update.o cvi_sd_update_spinand_v3.o
@@ -163,8 +164,6 @@ obj-$(CONFIG_CMD_TPM_TEST) += tpm_test.o
 obj-$(CONFIG_CMD_TPM_V2) += tpm-v2.o
 obj-$(CONFIG_CMD_CROS_EC) += cros_ec.o
 obj-$(CONFIG_CMD_TSI148) += tsi148.o
-obj-$(CONFIG_CMD_UBI) += ubi.o
-obj-$(CONFIG_CMD_UBIFS) += ubifs.o
 obj-$(CONFIG_CMD_UNIVERSE) += universe.o
 obj-$(CONFIG_CMD_UNLZ4) += unlz4.o
 obj-$(CONFIG_CMD_UNZIP) += unzip.o
@@ -215,10 +214,15 @@ obj-$(CONFIG_X86) += x86/
 obj-$(CONFIG_ARCH_MVEBU) += mvebu/
 endif # !CONFIG_SPL_BUILD
 
+obj-$(CONFIG_CMD_UBI) += ubi.o
+obj-$(CONFIG_CMD_UBIFS) += ubifs.o
+
 obj-$(CONFIG_$(SPL_)CMD_TLV_EEPROM) += tlv_eeprom.o
 
 # core command
 obj-y += nvedit.o
+
+obj-$(CONFIG_CMD_BOOT_MODE) += cvi_boot_mode.o
 
 obj-$(CONFIG_CMD_BCM_EXT_UTILS) += broadcom/
 

@@ -2338,10 +2338,20 @@ read_retry:
 			 * Now read the page into the buffer.  Absent an error,
 			 * the read methods return max bitflips per ecc step.
 			 */
-			if (unlikely(ops->mode == MTD_OPS_RAW))
+			if (unlikely(ops->mode == MTD_OPS_RAW)) {
+				if (oob) {
+					bufpoi = kmalloc(mtd->oobsize + mtd->writesize, GFP_KERNEL);
+					if (!bufpoi)
+						return -ENOMEM;
+				}
 				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi,
-							      oob_required,
-							      page);
+					oob_required,
+					page);
+				memcpy(buf, bufpoi, mtd->writesize);
+				memcpy(oob, bufpoi + mtd->writesize, mtd->oobsize);
+				kfree(bufpoi);
+			}
+
 			else if (!aligned && NAND_HAS_SUBPAGE_READ(chip) &&
 				 !oob)
 				ret = chip->ecc.read_subpage(mtd, chip,

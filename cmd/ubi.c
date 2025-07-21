@@ -148,7 +148,7 @@ bad:
 	return err;
 }
 
-static int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id,
+int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id,
 			  bool skipcheck)
 {
 	struct ubi_mkvol_req req;
@@ -182,7 +182,7 @@ static int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id,
 	return ubi_create_volume(ubi, &req);
 }
 
-static struct ubi_volume *ubi_find_volume(char *volume)
+struct ubi_volume *ubi_find_volume(char *volume)
 {
 	struct ubi_volume *vol = NULL;
 	int i;

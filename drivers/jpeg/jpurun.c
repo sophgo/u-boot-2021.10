@@ -195,6 +195,8 @@ int jpeg_decode_helper(DecConfigParam *param)
 		goto ERR_DEC_INIT;
 	}
 
+	JpuWriteReg(MJPEG_INTR_MASK_REG, 0xff);
+
 	// Open an instance and get initial information for decoding.
 
 	vbStream.size = STREAM_BUF_SIZE;
@@ -672,6 +674,7 @@ SKIP_BUF_DUMP:
 		if (decConfig.outNum && frameIdx == decConfig.outNum)
 			break;
 	}
+	JpuWriteReg(MJPEG_INTR_MASK_REG, 0);
 
 	if (totalNumofErrMbs) {
 		suc = 0;

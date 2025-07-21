@@ -19,6 +19,7 @@
 #include <fdt_support.h>
 #include <exports.h>
 #include <fdtdec.h>
+#include <cvi_boot_mode.h>
 
 /**
  * fdt_getprop_u32_default_node - Return a node's property or a default
@@ -294,7 +295,33 @@ int fdt_chosen(void *fdt)
 		return nodeoffset;
 
 #ifdef CONFIG_SPL_BUILD
-	str = CVI_SPL_BOOTAGRS;
+#if IS_ENABLED(CONFIG_CMD_BOOT_MODE)
+	enum boot_mode_t boot_mode = get_cvi_boot_mode();
+
+	switch (boot_mode) {
+	case BOOT_MODE_A:
+		str = CVI_SPL_BOOTAGRS;
+		break;
+#ifdef CONFIG_ROOTFS_B
+	case BOOT_MODE_B:
+		str = CVI_SPL_BOOTAGRSB;
+		break;
+#endif
+#ifdef CONFIG_ROOTFS_RECOVERY
+	case BOOT_MODE_R:
+		fallthrough;
+	default:
+		str = CVI_SPL_BOOTAGRSR;
+		break;
+#else
+	default:
+		str = CVI_SPL_BOOTAGRS;
+		break;
+#endif
+	}
+#else
+		str = CVI_SPL_BOOTAGRS;
+#endif
 #else
 	str = board_fdt_chosen_bootargs();
 #endif

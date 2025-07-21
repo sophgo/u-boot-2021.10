@@ -16,6 +16,8 @@ mtd-$(CONFIG_STM32_FLASH) += stm32_flash.o
 mtd-$(CONFIG_RENESAS_RPC_HF) += renesas_rpc_hf.o
 mtd-$(CONFIG_HBMC_AM654) += hbmc-am654.o
 
+obj-$(CONFIG_MTD_UBI) += ubi/
+
 # U-Boot build
 ifeq ($(CONFIG_SPL_BUILD)$(CONFIG_TPL_BUILD),)
 
@@ -25,7 +27,6 @@ endif
 obj-y += nand/
 obj-y += onenand/
 obj-y += spi/
-obj-$(CONFIG_MTD_UBI) += ubi/
 
 #SPL/TPL build
 else

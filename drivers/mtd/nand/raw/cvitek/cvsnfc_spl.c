@@ -7,6 +7,26 @@
 static struct mtd_info *mtd;
 static struct nand_chip nand_chip;
 
+struct mtd_info *nand_get_mtd(void)
+{
+	return mtd;
+}
+
+int nand_register(int devnum, struct mtd_info *mtd)
+{
+	static char dev_name[CONFIG_SYS_MAX_NAND_DEVICE][8];
+
+	if (devnum >= CONFIG_SYS_MAX_NAND_DEVICE)
+		return -EINVAL;
+
+	sprintf(dev_name[devnum], "nand%d", devnum);
+	mtd->name = dev_name[devnum];
+
+	add_mtd_device(mtd);
+
+	return 0;
+}
+
 void nand_init(void)
 {
 	mtd = nand_to_mtd(&nand_chip);
@@ -16,6 +36,8 @@ void nand_init(void)
 	if (nand_scan(mtd, 1)) {
 		return;
 	}
+
+	nand_register(0, mtd);
 }
 
 int nand_spl_load_image(uint32_t offs, unsigned int size, void *dst)

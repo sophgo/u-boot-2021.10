@@ -1,7 +1,11 @@
 #ifndef __CVI_UPDATE_H__
 #define __CVI_UPDATE_H__
 
+#define SECTOR_SIZE 0x200
 #define EXTRA_FLAG_SIZE 32
+// UART update defines
+#define UART_UPDATE_MAGIC 0x4D474E33
+#define UART_DL_BAUDRATE 115200
 
 #undef pr_debug
 #ifdef DEBUG

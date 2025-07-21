@@ -31,6 +31,8 @@
 #include <linux/delay.h>
 #include "cvi_update.h"
 #include "include/dps.h"
+#include "cvi_vendor.h"
+
 #define USB_RW_EFUSE 	1
 #define HIGNT_SN 		0x0305010C
 #define LOW_SN			0x03050110
@@ -42,6 +44,15 @@ uint16_t cvi_usb_vid = 0x3346;
 #endif
 
 uint16_t cvi_usb_pid;
+
+#define USB_UPDATE_EMMC_ERROR	"emmc_write_fail"
+#define USB_UPDATE_NAND_ERROR	"nand_write_fail"
+#define USB_UPDATE_SUCCESS	"update_success"
+#define USB_UPDATE_DOING	"update_doing"
+#define USB_UPDATE_HEADER	"configure_vendor_id:"
+
+int update_vendor_id;
+char disk_mac[64];
 
 static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req);
 static void sramOutReqS2D(uint64_t addr, uint32_t size);
@@ -173,6 +184,108 @@ static char *_allow_wl_areas[] = { "LOCK_HASH0_PUBLIC",
 				   "LOCK_WRITE_LOADER_EK",
 				   "LOCK_WRITE_DEVICE_EK" };
 #endif // USB_RW_EFUSE
+
+#if CONFIG_IS_ENABLED(CMD_CVI_VENDOR)
+void str_split(const char *str, char *left, char *right, char c)
+{
+	char *p = strchr(str, c);
+
+	if (!p) {
+		strcpy(left, str);
+	} else {
+		strlcpy(left, str, p - str);
+		strcpy(right, p + 1);
+	}
+}
+
+int vendor_test_read(char *cmd, char *buf, int buf_len)
+{
+	if (!cmd || !buf) {
+		printf("param is NULL\n");
+		return -1;
+	}
+
+	int id = 0;
+	char left[32] = {0};
+	char right[32] = {0};
+
+	str_split(cmd, left, right, ' ');
+	if (strcmp(left, "vendor_read") != 0) {
+		printf("cmd error ! [%s]\n", left);
+		return -1;
+	}
+
+	id = simple_strtoul(right, NULL, 10);
+	if (id < VENDOR_SN_ID || id > VENDOR_BLUETOOTH_ID) {
+		printf("id error [%d]\n", id);
+		return -1;
+	}
+	vendor_storage_read(id, (void *)buf, buf_len);
+
+	return 0;
+}
+
+int vendor_test_write(char *cmd)
+{
+	if (!cmd) {
+		printf("cmd is NULL\n");
+		return -1;
+	}
+
+	int id = 0;
+	char left[32] = {0};
+	char mid[32] = {0};
+	char right[32] = {0};
+	char tmp[32] = {0};
+
+	str_split(cmd, left, mid, ' ');
+	strcpy(tmp, mid);
+	memset(mid, 0, sizeof(mid));
+	str_split(tmp, mid, right, ' ');
+
+	id = simple_strtoul(mid, NULL, 10);
+	if (id < VENDOR_SN_ID || id > VENDOR_BLUETOOTH_ID) {
+		printf("id error [%d]\n", id);
+		return -1;
+	}
+
+	vendor_storage_write(id, (void *)right, strlen(right));
+
+	return 0;
+}
+#endif
+
+long flag_atoi(char *p)
+{
+	long num = 0;
+	unsigned int flag = 1;
+
+	while (*p) {
+		if (*p < '0' || *p > '9') {
+			if (*p == '-')
+				flag = 0;
+			else
+				break;
+		}
+		if (flag) {
+			num = num * 10;
+			num = num + *p - '0';
+			p++;
+		} else {
+			if (*(p + 1) == '\0')
+				break;
+			num = num * 10;
+			num = num + p[1] - '0';
+			p++;
+		}
+	}
+
+	if (flag)
+		return num;
+
+	num = 0 - num;
+	return num;
+}
 
 void print_buf_addr(void)
 {
@@ -696,13 +809,20 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 	uint32_t length =
 		((uint32_t)msg->header.len_hi << 8) | msg->header.len_low;
 	func *jump_fun;
+
 #if USB_RW_EFUSE // Mark_to_do
 	uint8_t read_buf[128];
 	uint8_t ack_result[16];
 	uint32_t sn_hi, sn_lo;
 #endif // USB_RW_EFUSE
-#ifdef CONFIG_NAND_SUPPORT
+
+	static int prg_ret;
+	static uint32_t prg_size;
+	static uint32_t prg_offset;
+
 	char cmd[255] = { '\0' };
+
+#ifdef CONFIG_NAND_SUPPORT
 	static char prevExtra[EXTRA_FLAG_SIZE + 1] = { '\0' };
 #endif
 
@@ -730,19 +850,20 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 		/* INFO("CVI_USB_S2D, addr = 0x%lx, len = 0x%lx\n",dest_addr, msg_s2d->size); */
 		sendInReq(length, CVI_USB_S2D, bulkCmplEmpty, NULL, 0);
 		if (dest_addr >= GLOBAL_MEM_START_ADDR) {
-			resetOutReqS2D(dest_addr, msg_s2d->size,
-				       bulkResetOutReq);
+			resetOutReqS2D(dest_addr, msg_s2d->size, bulkResetOutReq);
+
 #ifdef CONFIG_NAND_SUPPORT
 			// Erase partition first
 			if (!strncmp((char *)((uintptr_t)HEADER_ADDR), "CIMG", 4)) {
 				strlcpy(prevExtra,
-					(char *)((uintptr_t)HEADER_ADDR + 20),
+					(char *)((uintptr_t)HEADER_ADDR + 24),
 					EXTRA_FLAG_SIZE);
 				snprintf(cmd, 255, "nand erase.part -y %s", prevExtra);
 				pr_debug("%s\n", cmd);
 				run_command(cmd, 0);
 			}
 #endif
+
 		} else {
 			sramOutReqS2D(dest_addr, msg_s2d->size);
 		}
@@ -758,7 +879,7 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 				unsigned char sendbuf[8];
 
 				uint64_t image_addr = UPDATE_ADDR;
-				for (int i=0; i<sizeof(sendbuf); i++)
+				for (int i = 0; i < sizeof(sendbuf); i++)
 				{
 					sendbuf[i] = (image_addr & 0xff);
 					image_addr >>= 8;
@@ -790,12 +911,55 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case CVI_USB_PROGRAM:
 		/* INFO("CVI_USB_PROGRAM\n"); */
-		_prgImage((void *)UPDATE_ADDR, 0x40, NULL);
+		prg_ret = _prgImage((void *)UPDATE_ADDR, 0x40, NULL);
+
+		prg_size = *(uint32_t *)((uintptr_t)UPDATE_ADDR + 4);
+		prg_size = (prg_size & (SECTOR_SIZE - 1)) ? ALIGN(prg_size, SECTOR_SIZE) : prg_size;
+		prg_size /= SECTOR_SIZE;
+		prg_offset = *(uint32_t *)((uintptr_t)UPDATE_ADDR + 8) / SECTOR_SIZE;
+
 		sendInReq(length, CVI_USB_PROGRAM, bulkResetOutReq, NULL, 0);
+
 		NOTICE("CVI_USB_PROGRAM done\n");
 		return;
-	case CVI_USB_RESET_ARM:
-		NOTICE("CVI_USB_RESET_ARM\n");
+	case CVI_USB_READ_BACK:
+		NOTICE("CVI_USB_READ_BACK\n");
+	#if defined(CONFIG_EMMD_SUPPORT)
+		if (prg_ret == 0) {
+#if CONFIG_IS_ENABLED(CMD_CVI_VENDOR)
+			if (update_vendor_id != 0) {
+				char write_buf[64];
+
+				printf("---set vendor emmc write fail-id:%d--\n", update_vendor_id);
+				sprintf(write_buf, "%s%s", USB_UPDATE_EMMC_ERROR, disk_mac);
+				vendor_storage_write(update_vendor_id, write_buf, strlen(write_buf));
+			}
+#endif
+		} else {
+			snprintf(cmd, 255, "mmc read %p 0x%x 0x%x", (void *)UPDATE_ADDR, prg_offset, prg_size);
+			pr_debug("%s\n", cmd);
+			run_command(cmd, 0);
+		}
+	#elif defined(CONFIG_NAND_SUPPORT)
+		if (prg_ret == 0) {
+#if CONFIG_IS_ENABLED(CMD_CVI_VENDOR)
+			if (update_vendor_id != 0) {
+				char write_buf[64];
+
+				printf("---set vendor nand write fail-id:%d--\n", update_vendor_id);
+				sprintf(write_buf, "%s%s", USB_UPDATE_NAND_ERROR, disk_mac);
+				vendor_storage_write(update_vendor_id, write_buf, strlen(write_buf));
+			}
+#endif
+		} else {
+			// nand read args: nand read addr offset size
+			snprintf(cmd, 255, "nand read %p 0x%x 0x%x", (void *)UPDATE_ADDR,
+					prg_offset * SECTOR_SIZE, prg_size * SECTOR_SIZE);
+			pr_debug("%s\n", cmd);
+			run_command(cmd, 0);
+		}
+	#endif
+		sendInReqD2S((uint64_t)UPDATE_ADDR, prg_size * SECTOR_SIZE, bulkResetOutReq);
 		break;
 	case CVI_USB_BREAK:
 		INFO("CVI_USB_BREAK\n");
@@ -813,20 +977,45 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 			NOTICE("flagEnterDL %d\n", flagEnterDL);
 		}
 		break;
+#if CONFIG_IS_ENABLED(CMD_CVI_VENDOR)
+	case CVI_USB_READ_VENDOR:
+		NOTICE("CVI_USB_READ_VENDOR\n");
+		char read_data[32] = {0};
+
+		sprintf(cmd, "vendor_read %d", (uint8_t)dest_addr);
+		vendor_test_read(cmd, read_data, sizeof(read_data));
+		printf("read_data len : %ld, buf_size: %ld, read_data: %s\n",
+			strlen(read_data), sizeof(read_data), read_data);
+		sendInReqD2S((uint64_t)read_data,  strlen(read_data), bulkResetOutReq);
+		break;
+#endif
 	case CVI_USB_PRG_CMD:
 		NOTICE("CVI_USB_PRG_CMD\n");
-		for (i = 0; i < ARRAY_SIZE(_allow_cmds); i++) {
-			if (strncmp((void *)((uintptr_t)cmdBuf +
-						  (uintptr_t)HEADER_SIZE),
-					 _allow_cmds[i],
-					 strlen(_allow_cmds[i])) == 0) {
-				char cmd[255] = { '\0' };
 
-				strncpy(cmd,
-					(void *)((uintptr_t)cmdBuf +
-						 (uintptr_t)HEADER_SIZE),
-					min(length - HEADER_SIZE,
-					    (uint32_t)254));
+		printf("revice buf:%s\n", (char *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE));
+#if CONFIG_IS_ENABLED(CMD_CVI_VENDOR)
+		if (strstr((void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE), USB_UPDATE_HEADER) != NULL) {
+			char tmp[32] = {'\0'};
+			char *mac = NULL;
+			char write_buf[64];
+
+			strlcpy(tmp, (void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE + strlen(USB_UPDATE_HEADER)),
+				min_t(uint32_t, length - HEADER_SIZE - strlen(USB_UPDATE_HEADER), 32));
+			update_vendor_id = flag_atoi(tmp);
+			mac = strstr(tmp, ";");
+			sprintf(disk_mac, "%s", mac);
+			sprintf(write_buf, "%s%s", USB_UPDATE_DOING, disk_mac);
+			printf("---set vendor update doing-id:%d--\n", update_vendor_id);
+			vendor_storage_write(update_vendor_id, write_buf, strlen(write_buf));
+			udelay(500 * 1000);
+		}
+#endif
+
+		for (i = 0; i < ARRAY_SIZE(_allow_cmds); i++) {
+			if (strncmp((void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE),
+				_allow_cmds[i], strlen(_allow_cmds[i])) == 0) {
+				strlcpy(cmd, (void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE),
+					min(length - HEADER_SIZE + 1, (uint32_t)254));
 				NOTICE("run command: %s\n", cmd);
 				run_command(cmd, 0);
 				break;
