@@ -520,6 +520,8 @@ void set_product_pinmux(void)
 		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b1"))
 		sm9v1_board_init();
+	else if (strstr(dtstype, "se9b2"))
+		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b3"))
 		sm9v1_board_init();
 	else if (strstr(dtstype, "sm9v2"))
