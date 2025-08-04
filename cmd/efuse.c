@@ -160,12 +160,10 @@ static int cvi_efuse_write_word(uint32_t vir_word_addr, uint32_t val)
 
 	for (j = 0; j < 2; j++) {
 		VERBOSE("EFUSE: Program physical word addr #%d\n", (vir_word_addr << 1) | j);
-
 		// array read by word address
 		row_val = cvi_efuse_read_from_phy((vir_word_addr << 1) | j,
 						  EFUSE_AREAD); // read low word of word_addr
 		zero_bit = val & (~row_val); // only program zero bit
-
 		// program row which bit is zero
 		for (i = 0; i < 32; i++) {
 			if ((zero_bit >> i) & 1)
@@ -288,6 +286,20 @@ static struct _CVI_EFUSE_USER_S {
 #define CVI_EFUSE_BOOT_LOADER_ENCRYPTION		6
 #define CVI_EFUSE_LDR_KEY_SELECTION_SHIFT		23
 
+static const char *const efuse_index[] = {
+	[CVI_EFUSE_AREA_USER] = "USER",
+	[CVI_EFUSE_AREA_DEVICE_ID] = "DEVICE_ID",
+	[CVI_EFUSE_AREA_HASH0_PUBLIC] = "HASH0_PUBLIC",
+	[CVI_EFUSE_AREA_LOADER_EK] = "LOADER_EK",
+	[CVI_EFUSE_AREA_DEVICE_EK] = "DEVICE_EK",
+	[CVI_EFUSE_LOCK_HASH0_PUBLIC] = "LOCK_HASH0_PUBLIC",
+	[CVI_EFUSE_LOCK_LOADER_EK] = "LOCK_LOADER_EK",
+	[CVI_EFUSE_LOCK_DEVICE_EK] = "LOCK_DEVICE_EK",
+	[CVI_EFUSE_LOCK_WRITE_HASH0_PUBLIC] = "LOCK_WRITE_HASH0_PUBLIC",
+	[CVI_EFUSE_LOCK_WRITE_LOADER_EK] = "LOCK_WRITE_LOADER_EK",
+	[CVI_EFUSE_LOCK_WRITE_DEVICE_EK] = "LOCK_WRITE_DEVICE_EK",
+	[CVI_EFUSE_SECUREBOOT] = "SECUREBOOT",
+};
 
 CVI_S32 CVI_EFUSE_GetSize(enum CVI_EFUSE_AREA_E area, CVI_U32 *size)
 {
@@ -316,7 +328,11 @@ CVI_S32 _CVI_EFUSE_Read(CVI_U32 addr, void *buf, CVI_U32 buf_size)
 		buf_size = EFUSE_SIZE;
 
 	for (i = 0; i < buf_size; i += 4) {
-		ret = cvi_efuse_read_from_shadow(addr + i);
+		if(addr > 0xc4 && addr < EFUSE_SIZE){
+			ret = cvi_efuse_read_from_phy((addr + i)/ 4 << 1, EFUSE_MREAD)|cvi_efuse_read_from_phy((addr + i)/ 4 << 1 | 1, EFUSE_MREAD);
+		}else{
+			ret = cvi_efuse_read_from_shadow(addr + i);
+		}
 		VERBOSE("%s(): i=%x ret=%lx\n", __func__, i, ret);
 		if (ret < 0)
 			return ret;
@@ -505,6 +521,7 @@ CVI_S32 CVI_EFUSE_Lock(enum CVI_EFUSE_LOCK_E lock)
 		_cc_error("lock (%d) is not found\n", lock);
 		return CVI_ERR_EFUSE_INVALID_AREA;
 	}
+	mmio_write_32(EFUSE_BASE+0x24,0xe9546b8d);
 
 	value = 0x3 << cvi_efuse_lock[lock].wlock_shift;
 	ret = _CVI_EFUSE_Write(CVI_EFUSE_LOCK_ADDR, &value, sizeof(value));
@@ -516,6 +533,7 @@ CVI_S32 CVI_EFUSE_Lock(enum CVI_EFUSE_LOCK_E lock)
 		ret = _CVI_EFUSE_Write(CVI_EFUSE_LOCK_ADDR, &value, sizeof(value));
 	}
 
+	mmio_write_32(EFUSE_BASE+0x24,0x0);
 	return ret;
 }
 
@@ -523,7 +541,7 @@ CVI_S32 CVI_EFUSE_IsLocked(enum CVI_EFUSE_LOCK_E lock)
 {
 	CVI_S32 ret = 0;
 	CVI_U32 value = 0;
-
+	CVI_U32 tmp = 0;
 	if (lock >= ARRAY_SIZE(cvi_efuse_lock)) {
 		_cc_error("lock (%d) is not found\n", lock);
 		return CVI_ERR_EFUSE_INVALID_AREA;
@@ -533,9 +551,14 @@ CVI_S32 CVI_EFUSE_IsLocked(enum CVI_EFUSE_LOCK_E lock)
 	_cc_trace("ret=%d value=%u\n", ret, value);
 	if (ret < 0)
 		return ret;
-
-	value &= 0x3 << cvi_efuse_lock[lock].wlock_shift;
-	return !!value;
+	tmp = value&(0x3 << cvi_efuse_lock[lock].wlock_shift);
+	ret = tmp;
+	printf("%s write is %s locked\n", efuse_index[lock], !!tmp ? "" : "not");
+	if(cvi_efuse_lock[lock].rlock_shift >= 0){
+		tmp = value&(0x3 << cvi_efuse_lock[lock].rlock_shift);
+		printf("%s read is %s locked\n", efuse_index[lock], !!tmp ? "" : "not");
+	}
+	return !!(ret|tmp);
 }
 
 CVI_S32 CVI_EFUSE_LockWrite(enum CVI_EFUSE_LOCK_E lock)
@@ -572,20 +595,6 @@ CVI_S32 CVI_EFUSE_IsWriteLocked(enum CVI_EFUSE_LOCK_E lock)
 	return !!value;
 }
 
-static const char *const efuse_index[] = {
-	[CVI_EFUSE_AREA_USER] = "USER",
-	[CVI_EFUSE_AREA_DEVICE_ID] = "DEVICE_ID",
-	[CVI_EFUSE_AREA_HASH0_PUBLIC] = "HASH0_PUBLIC",
-	[CVI_EFUSE_AREA_LOADER_EK] = "LOADER_EK",
-	[CVI_EFUSE_AREA_DEVICE_EK] = "DEVICE_EK",
-	[CVI_EFUSE_LOCK_HASH0_PUBLIC] = "LOCK_HASH0_PUBLIC",
-	[CVI_EFUSE_LOCK_LOADER_EK] = "LOCK_LOADER_EK",
-	[CVI_EFUSE_LOCK_DEVICE_EK] = "LOCK_DEVICE_EK",
-	[CVI_EFUSE_LOCK_WRITE_HASH0_PUBLIC] = "LOCK_WRITE_HASH0_PUBLIC",
-	[CVI_EFUSE_LOCK_WRITE_LOADER_EK] = "LOCK_WRITE_LOADER_EK",
-	[CVI_EFUSE_LOCK_WRITE_DEVICE_EK] = "LOCK_WRITE_DEVICE_EK",
-	[CVI_EFUSE_SECUREBOOT] = "SECUREBOOT",
-};
 
 static int find_efuse_by_name(const char *name)
 {
@@ -632,7 +641,6 @@ static int do_efuser(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 		return 0;
 	} else if (idx < CVI_EFUSE_LOCK_LAST) {
 		ret = CVI_EFUSE_IsLocked(idx);
-		printf("%s is %s locked\n", efuse_index[idx], ret ? "" : "not");
 		return 0;
 	} else if (idx == CVI_EFUSE_SECUREBOOT) {
 		ret = CVI_EFUSE_IsSecureBootEnabled();
@@ -718,12 +726,10 @@ static int do_efusew(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 
 	return CMD_RET_FAILURE;
 }
-
 static int do_efusew_word(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	uint32_t addr, value;
 	int ret = -1;
-
 	if (argc != 3)
 		return CMD_RET_USAGE;
 
@@ -767,7 +773,7 @@ U_BOOT_CMD(efusew_word, 9, 1, do_efusew_word, "Write word to efuse",
 	   "efusew_word addr value\n"
 	   "    - args ...");
 
-U_BOOT_CMD(efuser_dump, 9, 1, do_efuser_dump, "Read/Dump efuse",
+U_BOOT_CMD(efuser_dump, 9, 1, do_efuser_dump, "Read/Dump efuse except secure area",
 	   "do_efuser_dump\n"
 	   "    - args ...");
 
