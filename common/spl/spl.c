@@ -467,6 +467,11 @@ static int spl_common_init(bool setup_malloc)
 {
 	int ret;
 
+#ifdef CONFIG_SPL_EFUSE_SUPPORT
+	extern CVI_S32 CVI_EFUSE_EnableFastBoot(void);
+	CVI_EFUSE_EnableFastBoot();
+#endif
+
 #if CONFIG_VAL(SYS_MALLOC_F_LEN)
 	if (setup_malloc) {
 #ifdef CONFIG_MALLOC_F_ADDR

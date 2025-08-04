@@ -637,6 +637,13 @@ config SPL_DM_MAILBOX
 	  this option to build the drivers in drivers/mailbox as part of
 	  SPL build.
 
+config SPL_EFUSE_SUPPORT
+	bool "Support EFUSE"
+	help
+	  Enable support for efuse in SPL. This enable the efuse driver to be
+	  used within SPL. Enable this option to build the drivers in drivers/efuse
+	  as part of SPL build.
+
 config SPL_MMC_SUPPORT
 	bool "Support MMC"
 	depends on MMC

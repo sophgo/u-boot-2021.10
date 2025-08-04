@@ -167,6 +167,11 @@ static struct spi_nand_driver spi_nand_driver_mxic = {
 	.qe_enable = spi_nand_qe_enable,
 };
 
+static struct spi_nand_driver spi_nand_driver_gsto = {
+	.wait_ready = spi_general_wait_ready,
+	.write_enable = spi_general_write_enable,
+};
+
 /*****************************************************************************/
 #define SPI_NAND_ID_TAB_VER		"1.3"
 
@@ -1329,9 +1334,9 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
-	/* FORESEE F35SQA001G 1Gbit */
+	/* FORESEE F35SQx001G 1Gbit */
 	{
-		.name      = "F35SQA001G",
+		.name      = "F35SQx001G",
 		.id        = {0xcd, 0x71, 0x71},
 		.id_len    = 3,
 		.chipsize  = _128M,
@@ -1379,6 +1384,31 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	/* FORESEE F35SQB002G 2Gbit */
+	{
+		.name      = "F35SQB002G",
+		.id        = {0xcd, 0x52, 0x52},
+		.id_len    = 3,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x70, /* bit 4 & 5 & 6*/
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x7,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	{
 		.name      = "HYF2GQ4UAACAE",
 		.id        = {0xC9, 0x52},
@@ -1414,6 +1444,30 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.badblock_pos = BBP_FIRST_PAGE,
 		.driver    = &spi_nand_driver_gd,
 		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
+	{
+		.name      = "GSS01GSAX1-W8NMI0",
+		.id        = {0x52, 0xca, 0x13},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gsto,
+		.flags =  FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
 		.ecc_en_feature_offset = 0xb0, /* Configuration register */
 		.ecc_en_mask = 1 << 4, /* bit 4 */
 		.ecc_status_offset = 0xc0, /* Status register */

@@ -1430,15 +1430,11 @@ static int read_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 
 	ret = spi_nand_read_from_cache(host, col_addr, mtd->oobsize, buf);
 
-	if (DEBUG_READ) {
-		bbt_dump_buf("1oob data:", buf, 16);
-	}
-
-	cvsnfc_ctrl_ecc(mtd, 1);
-
 	if (ret != 0) {
 		printf("%s : ECC status ret %d page 0x%x\n", __func__, ret, page);
 	}
+
+	cvsnfc_ctrl_ecc(mtd, 1);
 
 	return ret;
 }
@@ -1480,9 +1476,6 @@ int cvsnfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	spi_nand_read_from_cache(host, col_addr, mtd->writesize + mtd->oobsize, buf);
-
-	if (DEBUG_READ)
-		bbt_dump_buf("read raw page:", buf, mtd->writesize + mtd->oobsize);
 
 	cvsnfc_ctrl_ecc(mtd, 1);
 
@@ -1688,6 +1681,58 @@ int cvsnfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return write_page(mtd, chip, buf, oob_required, page);
 }
 
+static int cvsnfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip, int page)
+{
+	struct cvsnfc_host *host = chip->priv;
+	struct cvsnfc_op *spi = host->spi;
+	uint32_t col_addr = 0;
+	int ret = 0;
+	u8 *buf = NULL;
+
+	buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+
+	if(!buf) {
+		pr_err("%s kmalloc failed!\n", __func__);
+		return -1;
+	}
+
+	cvsnfc_read_page_raw(mtd, chip, buf, 1, page);
+
+	memcpy(buf + mtd->writesize, chip->oob_poi, mtd->oobsize);
+
+	if (spi->driver->select_die) {
+		unsigned int die_id = page / (host->diesize / host->pagesize);
+
+		spi->driver->select_die(spi, die_id);
+	}
+
+	if (spi->driver->write_enable(spi)) {
+		printf("%s write enable failed!\n", __func__);
+		kfree(buf);
+		return -1;
+	}
+
+	uint32_t blk_idx = page /  host->block_page_cnt;
+
+	cvsnfc_ctrl_ecc(mtd, 0);
+
+	if (host->flags & FLAGS_SET_PLANE_BIT && (blk_idx & BIT(0))) {
+		if (DEBUG_WRITE)
+			pr_info("%s set plane bit for blkidx %d\n", __func__, blk_idx);
+		col_addr |= SPI_NAND_PLANE_BIT_OFFSET;
+	}
+
+	spi_nand_prog_load(host, buf, mtd->writesize + mtd->oobsize, col_addr, 0);
+
+	WATCHDOG_RESET();
+
+	spi_nand_prog_exec(host, page);
+
+	kfree(buf);
+
+	return ret;
+}
+
 /*****************************************************************************/
 void cvsnfc_nand_init(struct nand_chip *chip)
 {
@@ -1723,6 +1768,7 @@ void cvsnfc_nand_init(struct nand_chip *chip)
 	chip->ecc.read_page_raw = cvsnfc_read_page_raw;
 	chip->ecc.read_subpage = cvsnfc_read_subpage;
 	chip->ecc.write_page = cvsnfc_write_page;
+	chip->ecc.write_oob = cvsnfc_write_oob;
 
 	chip->options |= NAND_SUBPAGE_READ;
 
