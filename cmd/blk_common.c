@@ -11,11 +11,13 @@
 #include <common.h>
 #include <blk.h>
 #include <command.h>
+#include <linux/math64.h>
 
 int blk_common_cmd(int argc, char *const argv[], enum if_type if_type,
 		   int *cur_devnump)
 {
 	const char *if_name = blk_get_if_type_name(if_type);
+	ulong start_time, delta;
 
 	switch (argc) {
 	case 0:
@@ -70,12 +72,18 @@ int blk_common_cmd(int argc, char *const argv[], enum if_type if_type,
 
 			printf("\n%s read: device %d block # "LBAFU", count %lu ... ",
 			       if_name, *cur_devnump, blk, cnt);
-
+			start_time = get_timer(0);
 			n = blk_read_devnum(if_type, *cur_devnump, blk, cnt,
 					    (ulong *)addr);
-
-			printf("%ld blocks read: %s\n", n,
-			       n == cnt ? "OK" : "ERROR");
+			delta = get_timer(start_time);
+			printf("%ld blocks read: %s in %lu ms", n,
+			       n == cnt ? "OK" : "ERROR", delta);
+			if (delta > 0) {
+				puts(" (");
+				print_size(div_u64(n * 512, delta) * 1000, "/s");
+				puts(")");
+			}
+			puts("\n");
 			return n == cnt ? 0 : 1;
 		} else if (strcmp(argv[1], "write") == 0) {
 			ulong addr = hextoul(argv[2], NULL);
@@ -85,12 +93,18 @@ int blk_common_cmd(int argc, char *const argv[], enum if_type if_type,
 
 			printf("\n%s write: device %d block # "LBAFU", count %lu ... ",
 			       if_name, *cur_devnump, blk, cnt);
-
+			start_time = get_timer(0);
 			n = blk_write_devnum(if_type, *cur_devnump, blk, cnt,
 					     (ulong *)addr);
-
-			printf("%ld blocks written: %s\n", n,
-			       n == cnt ? "OK" : "ERROR");
+			delta = get_timer(start_time);
+			printf("%ld blocks written: %s in %lu ms", n,
+			       n == cnt ? "OK" : "ERROR", delta);
+			if (delta > 0) {
+				puts(" (");
+				print_size(div_u64(n * 512, delta) * 1000, "/s");
+				puts(")");
+			}
+			puts("\n");
 			return n == cnt ? 0 : 1;
 		} else {
 			return CMD_RET_USAGE;

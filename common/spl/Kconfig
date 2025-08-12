@@ -1,7 +1,7 @@
 menu "SPL / TPL"
 
 config SUPPORT_SPL
-	bool
+	bool "SUPPORT_SPL"
 
 config SUPPORT_TPL
 	bool

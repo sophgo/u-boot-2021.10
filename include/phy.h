@@ -534,6 +534,7 @@ int phy_meson_gxl_init(void);
 int phy_natsemi_init(void);
 int phy_nxp_tja11xx_init(void);
 int phy_realtek_init(void);
+int phy_maxio_init(void);
 int phy_motorcomm_init(void);
 int phy_smsc_init(void);
 int phy_teranetics_init(void);

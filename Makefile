@@ -1700,7 +1700,7 @@ quiet_cmd_u-boot-elf ?= LD      $@
 	cmd_u-boot-elf ?= $(LD) u-boot-elf.o -o $@ \
 	-T u-boot-elf.lds --defsym=$(CONFIG_PLATFORM_ELFENTRY)=$(CONFIG_SYS_TEXT_BASE) \
 	-Ttext=$(CONFIG_SYS_TEXT_BASE)
-u-boot.elf: u-boot.bin u-boot-elf.lds
+u-boot.elf: u-boot.bin u-boot-elf.lds u-boot.dis
 	$(Q)$(OBJCOPY) -I binary $(PLATFORM_ELFFLAGS) $< u-boot-elf.o
 	$(call if_changed,u-boot-elf)
 
@@ -1990,7 +1990,10 @@ cmd_cpp_lds = $(CPP) -Wp,-MD,$(depfile) $(cpp_flags) $(LDPPFLAGS) \
 u-boot.lds: $(LDSCRIPT) prepare FORCE
 	$(call if_changed_dep,cpp_lds)
 
-spl/u-boot-spl.bin: spl/u-boot-spl
+spl/u-boot-spl.dis: spl/u-boot-spl FORCE
+	$(OBJDUMP) -d $< > $@
+
+spl/u-boot-spl.bin: spl/u-boot-spl spl/u-boot-spl.dis
 	@:
 	$(SPL_SIZE_CHECK)
 

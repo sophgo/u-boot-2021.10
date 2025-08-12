@@ -47,6 +47,10 @@ u64 get_ddr_size_from_sram(void);
 DECLARE_GLOBAL_DATA_PTR;
 #define SD1_SDIO_PAD
 
+#ifdef CONFIG_SPL
+const char version_string[] = U_BOOT_VERSION_STRING;
+#endif
+
 #if defined(__aarch64__)
 static struct mm_region cv186x_mem_map[] = {
 	{
@@ -536,6 +540,8 @@ void set_product_pinmux(void)
 		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b1"))
 		sm9v1_board_init();
+	else if (strstr(dtstype, "se9b2"))
+		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b3"))
 		sm9v1_board_init();
 	else if (strstr(dtstype, "se9b4"))
@@ -616,6 +622,7 @@ void get_dts_type_from_oem(unsigned char *dtsname)
 	if (strlen(dtsname) == 0)
 		memcpy(dtsname, DEFAULT_DTSNAME, sizeof(DEFAULT_DTSNAME));
 	printf("OEM INFO: DTS_TYPE[%s]\n", dtsname);
+
 }
 
 /*get dts from sram*/
@@ -676,8 +683,23 @@ int setup_sophgo_dts(void)
 	char dtsType[DTSNAME_MAX_LEN] = {0};
 	char *ptr = NULL;
 
-	get_dts_type_from_oem(dtsType);
+#ifdef CONFIG_SD_BOOT
+	//for SD/spinor boot, read dts_type file on /boot
+	if (fat_exists("dts_type")) {
+		file_fat_read("dts_type", dtsType, DTSNAME_MAX_LEN);
+		dtsType[DTSNAME_MAX_LEN - 1] = '\0';
+		printf("read dts_type: %s.\n", dtsType);
+	} else {
+		dtsType[0] = '\0';
+	}
 
+	// use default dts
+	if (strlen(dtsType) == 0)
+		memcpy(dtsType, DEFAULT_DTSNAME, sizeof(DEFAULT_DTSNAME));
+	printf("OEM INFO: DTS_TYPE[%s]\n", dtsType);
+#else
+	get_dts_type_from_oem(dtsType);
+#endif
 	ptr = strstr(dtsType, "config-");
 	//If the string does not start with "config-"
 	if (!ptr && ptr != dtsType) {
@@ -694,7 +716,10 @@ int setup_sophgo_dts(void)
 #ifdef CONFIG_BOARD_LATE_INIT
 static void get_ether_addr_from_emmc(unsigned char *mac, int i)
 {
-	#if defined(CONFIG_SPI_FLASH)
+	#if defined(CONFIG_SD_BOOT)
+	//todo: read from sdcard
+
+	#elif defined(CONFIG_SPI_FLASH)
 	//todo: read from spinor flash
 
 	#else	//default eMMC
@@ -890,3 +915,8 @@ int board_fit_config_name_match(const char *name)
 	return -1;
 }
 #endif
+
+struct image_header *spl_get_load_buffer(ssize_t offset, size_t size)
+{
+	return (struct image_header *)CVIMMAP_UIMAG_ADDR;
+}

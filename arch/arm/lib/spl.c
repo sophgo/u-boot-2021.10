@@ -17,6 +17,8 @@
 #include <asm/global_data.h>
 #include <linux/compiler.h>
 #include <asm/mach-types.h>
+#include <stdio.h>
+#include <ctype.h>
 
 #ifndef CONFIG_SPL_DM
 /* Pointer to as well as the global data structure for SPL */
@@ -46,6 +48,7 @@ void __weak board_init_f(ulong dummy)
 {
 }
 
+
 /*
  * This function jumps to an image with argument. Normally an FDT or ATAGS
  * image.
@@ -54,10 +57,21 @@ void __weak board_init_f(ulong dummy)
 #ifdef CONFIG_ARM64
 void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
 {
-	debug("Entering kernel arg pointer: 0x%p\n", spl_image->arg);
-	cleanup_before_linux();
-	armv8_switch_to_el2((u64)spl_image->arg, 0, 0, 0,
-			    spl_image->entry_point, ES_TO_AARCH64);
+	uintptr_t fdt_relocate;
+
+	if (spl_image->os == IH_OS_LINUX) {
+					/* HACK: U-boot expects FDT at a specific address */
+					fdt_relocate = spl_image->entry_point - 0x80000;
+					fdt_relocate = (fdt_relocate + 3) & ~3;
+					memcpy((void *)fdt_relocate, spl_image->fdt_addr, fdt_totalsize(spl_image->fdt_addr));
+					spl_image->fdt_addr = (void *)fdt_relocate;
+	}
+	printf("entry_point=0x%lx, fdt_addr=0x%p \n", spl_image->entry_point, spl_image->fdt_addr);
+	board_save_time_record(TIME_RECORDS_FIELD_DECOMPRESS_KERNEL_START);
+	board_save_time_record(TIME_RECORDS_FIELD_KERNEL_START);
+	armv8_switch_to_el2((u64)spl_image->fdt_addr, 0, 0, 0,
+                                           spl_image->entry_point,
+                                           ES_TO_AARCH64);
 }
 #else
 void __noreturn jump_to_image_linux(struct spl_image_info *spl_image)
