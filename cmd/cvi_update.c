@@ -6,6 +6,7 @@
 #include <ubifs_uboot.h>
 #include <serial.h>
 #include <linux/delay.h>
+#include <usb/dwc2_udc.h>
 #ifdef CONFIG_NAND_SUPPORT
 #include <nand.h>
 #endif
@@ -479,6 +480,12 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			run_command("env default -a", 0);
 			ret = _storage_update(sd_dl);
 		} else if (update_magic == USB_UPDATE_MAGIC) {
+			#ifdef CONFIG_CHECK_USB_PLUG
+			if (cvi_get_chg_plug() != CHG_PLUG_HUB) {
+				printf("usb download but not plug into pc\n");
+				return -1;
+			}
+			#endif
 			run_command("env default -a", 0);
 			usb_pid = in_be32(UBOOT_PID_SRAM_ADDR);
 			usb_pid = bcd2hex4(usb_pid);
@@ -514,6 +521,11 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 		env_save();
 	}
 #endif
+#if defined(CONFIG_EFUSE_ENABLE_FASTBOOT)
+	// Only update success, set fastboot flag
+	if (ret == 0)
+		run_command("efusew FASTBOOT", 0);
+#endif
 	return ret;
 }
 
@@ -521,5 +533,3 @@ U_BOOT_CMD(
 	cvi_update, 2, 0, do_cvi_update,
 	"cvi_update [eth, sd, usb]- check boot status and update if necessary\n",
 	"run cvi_update without parameter will check the boot status and try to update");
-
-

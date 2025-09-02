@@ -86,7 +86,8 @@ const struct flash_info spi_nor_ids[] = {
 	{ INFO("W25Q128JV-IQ", 0xef4018, 0x0, 64 * 1024, 256,
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("W25Q128JV-IMJM", 0xef7018, 0x0, 64 * 1024, 256,
-		SPI_NOR_QUAD_READ | SECT_4K) },
+		SPI_NOR_QUAD_READ | SECT_4K | SPI_NOR_DTR_READ)
+		.dtr_dummy_cycle = 8},
 	{ INFO("W25Q64JV-IQ", 0xef4017, 0x0, 64 * 1024, 128,
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("GD25Q128E", 0xc84018, 0x0, 64 * 1024, 256,
@@ -156,6 +157,9 @@ const struct flash_info spi_nor_ids[] = {
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("MX25U25645G", 0xc22539, 0x0, 64 * 1024, 512,
 		SPI_NOR_QUAD_READ | SECT_4K | SPI_NOR_4B_OPCODES) },
+	{ INFO("W25Q32RV-DTR", 0xef7016, 0x0, 64 * 1024, 64,
+		SPI_NOR_QUAD_READ | SECT_4K | SPI_NOR_DTR_READ)
+		.dtr_dummy_cycle = 8},
 	{ },
 };
 

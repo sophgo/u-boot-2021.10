@@ -1061,6 +1061,9 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 #endif // USB_RW_EFUSE
 	case CVI_USB_REBOOT:
 		NOTICE("CVI_USB_REBOOT\n");
+#ifdef CONFIG_EFUSE_ENABLE_FASTBOOT
+		run_command("efusew FASTBOOT", 0);
+#endif
 		// software_root_reset(); // Mark_to_do
 		mmio_setbits_32(TOP_BASE + 0x8, 0x4); // wdt reset enable
 		mmio_write_32(WATCHDOG_BASE + 0x4,
@@ -1542,7 +1545,6 @@ uint32_t plat_cvi_gpio_read(uint32_t mask)
 }
 #endif
 
-#if defined(USB_PHY_DETECTION)
 uint8_t usb_vbus_det(void)
 {
 	uint8_t vbus;
@@ -1555,7 +1557,6 @@ uint8_t usb_vbus_det(void)
 
 	return vbus;
 }
-#endif
 
 void acm_patch_id(unsigned short vid, unsigned short pid)
 {

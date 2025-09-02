@@ -304,6 +304,29 @@
 		"mtdids=" MTDIDS_DEFAULT "\0" \
 		"root=" ROOTARGS "\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
+		"board_name=" FDT_NO "\0" \
+		"loadcmd=" \
+        "if test ${boot_device} = nand; then " \
+            "nand read ${uImage_addr} BOOT;" \
+            "mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
+        "elif test ${boot_device} = emmc; then " \
+            "mmc dev 0;" \
+            "mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+        "elif test ${boot_device} = nor; then " \
+            "sf probe;" \
+            "sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+        "fi;\0" \
+		"flash_fdt_cmd=" \
+        "if test ${boot_device} = nand; then " \
+			"nand erase.part BOOT;" \
+            "nand write ${uImage_addr} BOOT;" \
+        "elif test ${boot_device} = emmc; then " \
+            "mmc dev 0;" \
+            "mmc write ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+        "elif test ${boot_device} = nor; then " \
+            "sf probe;" \
+            "sf update ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
+        "fi;\0" \
 		OTHERBOOTARGS \
 		PARTS_OFFSET
 
@@ -361,43 +384,38 @@
 #else
 	#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update || run norboot || run nandboot ||run emmcboot"
 #endif
-	#if defined(CONFIG_NAND_SUPPORT)
+#if defined(CONFIG_NAND_SUPPORT)
 	/* For spi nand boot, need to reset DMA and its setting before exiting uboot */
 	/* 0x4330058 : DMA reset */
 	/* 0x3000154 : restore DMA remap to 0 */
-
-		#if defined(CONFIG_CMD_BOOT_MODE)
-			#define CONFIG_NANDBOOTCOMMAND \
-				"loadboot;" \
-				SET_BOOTARGS \
-				"mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
-				UBOOT_VBOOT_BOOTM_COMMAND
-		#else
-			#define CONFIG_NANDBOOTCOMMAND \
-				SET_BOOTARGS \
-				"nand read ${uImage_addr} BOOT;" \
-				"mw.l 4330058 1 1; md.l 4330058 1; mw.l 3000154 0 1;" \
-				UBOOT_VBOOT_BOOTM_COMMAND
-		#endif
-	#elif defined(CONFIG_SPI_FLASH)
-		#define CONFIG_NORBOOTCOMMAND \
+    #if defined(CONFIG_CMD_BOOT_MODE)
+        #define CONFIG_NANDBOOTCOMMAND \
+            "loadboot;" \
+            SET_BOOTARGS \
+            UBOOT_VBOOT_BOOTM_COMMAND
+    #else
+        #define CONFIG_NANDBOOTCOMMAND \
 			SET_BOOTARGS \
-			"sf probe;sf read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE};" \
-			UBOOT_VBOOT_BOOTM_COMMAND
-	#elif defined(CONFIG_EMMC_SUPPORT)
-		#if defined(CONFIG_CMD_BOOT_MODE)
-			#define CONFIG_EMMCBOOTCOMMAND \
-				"loadboot;" \
-				SET_BOOTARGS \
-				UBOOT_VBOOT_BOOTM_COMMAND
-		#else
-			#define CONFIG_EMMCBOOTCOMMAND \
-				SET_BOOTARGS \
-				"mmc dev 0 ;"		\
-				"mmc read ${uImage_addr} ${BOOT_PART_OFFSET} ${BOOT_PART_SIZE} ;"	\
-				UBOOT_VBOOT_BOOTM_COMMAND
-		#endif
-	#endif
+            "setenv boot_device nand; run loadcmd;" \
+            UBOOT_VBOOT_BOOTM_COMMAND
+    #endif
+#elif defined(CONFIG_SPI_FLASH)
+    #define CONFIG_NORBOOTCOMMAND \
+		SET_BOOTARGS \
+        "setenv boot_device nor; run loadcmd;" \
+        UBOOT_VBOOT_BOOTM_COMMAND
+#elif defined(CONFIG_EMMC_SUPPORT)
+    #if defined(CONFIG_CMD_BOOT_MODE)
+        #define CONFIG_EMMCBOOTCOMMAND \
+            "loadboot;" \
+            UBOOT_VBOOT_BOOTM_COMMAND
+    #else
+        #define CONFIG_EMMCBOOTCOMMAND \
+			SET_BOOTARGS \
+            "setenv boot_device emmc; run loadcmd;" \
+            UBOOT_VBOOT_BOOTM_COMMAND
+    #endif
+#endif
 
 #else
 	/* define your environment */

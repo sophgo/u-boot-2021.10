@@ -11,7 +11,7 @@
 
 #include <common.h>
 #include <linux/bitops.h>
-
+#include <spi_tuning.h>
 /* SPI mode flags */
 #define SPI_CPHA	BIT(0)	/* clock phase (1 = SPI_CLOCK_PHASE_SECOND) */
 #define SPI_CPOL	BIT(1)	/* clock polarity (1 = SPI_POLARITY_HIGH) */
@@ -359,6 +359,32 @@ void spi_cs_deactivate(struct spi_slave *slave);
  */
 void spi_set_speed(struct spi_slave *slave, uint hz);
 
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+/**
+ * param_set() - Configure the controller parameters to ensure timing stability,
+ * particularly in high-speed mode.
+ *
+ * @bus:	The SPI bus
+ * @param:	The value of tuning param
+ */
+int spi_get_tuning_param(struct udevice *bus, struct tuning_ops *tuning_param);
+
+/**
+ * tuning_param_get() - Get param's value before tuning according to controller
+ *
+ * @bus:	The SPI bus
+ * @tuning_param:	Include the total num, initial value and the range of param
+ */
+int spi_set_param(struct udevice *bus, unsigned int *param);
+
+/**
+ * tuning_fail_policy() - Get policy if tuning failed
+ *
+ * @bus:	The SPI bus
+ * @tuning_param:	Include the total num, initial value and the range of param
+ */
+int spi_tuning_fail_policy(struct udevice *bus,  int retry, struct tuning_ops *tuning_param);
+#endif
 /**
  * Write 8 bits, then read 8 bits.
  * @slave:	The SPI slave we're communicating with
@@ -523,6 +549,33 @@ struct dm_spi_ops {
 	 */
 	int (*get_mmap)(struct udevice *dev, ulong *map_basep,
 			uint *map_sizep, uint *offsetp);
+
+	/**
+	 * param_set() - Configure the controller parameters to ensure timing stability,
+	 * particularly in high-speed mode.
+	 *
+	 * @bus:	The SPI bus
+	 * @param:	The value of tuning param
+	 */
+	void (*param_set)(struct udevice *bus, unsigned int *param);
+
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+	/**
+	 * tuning_param_get() - Get param's value before tuning according to controller
+	 *
+	 * @bus:	The SPI bus
+	 * @tuning_param:	Include the total num, initial value and the range of param
+	 */
+	void (*tuning_param_get)(struct udevice *bus, struct tuning_ops *tuning_param);
+
+	/**
+	 * tuning_fail_policy() - Get policy if tuning failed
+	 *
+	 * @bus:	The SPI bus
+	 * @tuning_param:	Include the total num, initial value and the range of param
+	 */
+	int (*tuning_fail_policy)(struct udevice *bus, int retry, struct tuning_ops *tuning_param);
+#endif
 };
 
 struct dm_spi_emul_ops {

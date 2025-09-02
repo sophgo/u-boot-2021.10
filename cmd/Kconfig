@@ -988,6 +988,12 @@ config BOOTLOGO
           When enable this command it will add a new environment variable showlogo
       and will add the showlogo to the beginning of bootcmd
 
+config EFUSE_ENABLE_FASTBOOT
+	bool "efusew FASTBOOT"
+	help
+	  This enables the 'efusew FASTBOOT' command for fastboot, which allows reading
+	  and writing efuse bits. This is useful for automatically writing FASTBOOT efuse.
+
 config CMD_IDE
 	bool "ide - Support for IDE drivers"
 	select IDE
@@ -2430,6 +2436,13 @@ config CMD_CVI_UPDATE
 	help
 	uboot will check flag in SRAM and thendecide if it's sd,usb,usb drive or Ethernet upgrade.
 	User can run cvi_update [usb/sd/eth] for force update without check flag.
+
+config CHECK_USB_PLUG
+	bool "Check USB plug status"
+	default n
+	help
+	  Enable checking USB plug status before performing update.
+	  If not plugged to PC, will boot kernel from flash.
 
 config CMD_CVI_VENDOR
 	bool "cvitek vendor command"

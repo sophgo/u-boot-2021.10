@@ -268,3 +268,5 @@ CFLAGS_ethsw.o := -Wno-enum-conversion
 
 obj-y += ../drivers/crypto/sophon_spacc.o
 UBOOTINCLUDE+=-I$(srctree)/drivers/crypto
+
+obj-y += update_ion.o

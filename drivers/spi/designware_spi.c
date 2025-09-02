@@ -29,7 +29,9 @@
 #include <linux/compat.h>
 #include <linux/iopoll.h>
 #include <linux/sizes.h>
-
+#include <mmio.h>
+#include <spi-dma.h>
+#include <spi_tuning.h>
 /* Register offsets */
 #define DW_SPI_CTRLR0			0x00
 #define DW_SPI_CTRLR1			0x04
@@ -58,6 +60,7 @@
 #define DW_SPI_DR			0x60
 #define DW_SPI_RX_SAMPLE_DLY		0xf0
 #define DW_SPI_CTRLR0_EXT		0xf4
+#define DW_TXD_DRIVE_EDGE		0xf8
 
 #ifndef DW_VERSION_4_04
 #define DW_SPI_CS_OVERRIDE		0xf4
@@ -136,6 +139,8 @@
 
 struct dw_spi_plat {
 	s32 frequency;		/* Default clock frequency, -1 for none */
+	u8 rx_sample;
+	u8 txd_drive_edge;
 	void __iomem *regs;
 };
 
@@ -164,6 +169,8 @@ struct dw_spi_priv {
 	u8 tmode;			/* TR/TO/RO/EEPROM */
 	u8 type;			/* SPI/SSP/MicroWire */
 	u8 n_bytes;
+	u8 rx_sample;
+	u8 txd_drive_edge;
 };
 
 static inline u32 dw_read(struct dw_spi_priv *priv, u32 offset)
@@ -261,6 +268,8 @@ static int dw_spi_of_to_plat(struct udevice *bus)
 	/* Use 500KHz as a suitable default */
 	plat->frequency = dev_read_u32_default(bus, "spi-max-frequency",
 					       500000);
+	plat->rx_sample = dev_read_u32_default(bus, "rx-sample-delay-ns", 1);
+	plat->txd_drive_edge = dev_read_u32_default(bus, "txd-drive-edge", 0);
 
 	if (dev_read_bool(bus, "spi-slave"))
 		return -EINVAL;
@@ -373,7 +382,8 @@ static int dw_spi_probe(struct udevice *bus)
 
 	priv->regs = plat->regs;
 	priv->freq = plat->frequency;
-
+	priv->rx_sample = plat->rx_sample;
+	priv->txd_drive_edge = plat->txd_drive_edge;
 	//ret = dw_spi_get_clk(bus, &priv->bus_clk_rate);
 	//if (ret) {
 	//	dev_err(bus, "[%s]{%d} get the spi clk failed, ret:%d!\n", __FUNCTION__, __LINE__, ret);
@@ -657,7 +667,6 @@ void spi_update_config(struct spi_slave *slave, const struct spi_mem_op *op)
 	struct dw_spi_priv *priv = dev_get_priv(bus);
 	u32 ctrl0 = 0;
 	u32 spi_ctrl0 = 0;
-	u32 rx_sample = 0;
 
 	struct spi_cfg {
 		u8 tmode;
@@ -665,7 +674,12 @@ void spi_update_config(struct spi_slave *slave, const struct spi_mem_op *op)
 		u32 ndf;
 	};
 
+	struct spi_param {
+		u8 cur_rx_delay;
+		u8 cur_txd_drive_edge;
+	};
 	struct spi_cfg cfg;
+	static struct spi_param param = {0};
 
 	cfg.dfs = 8;
 	if (op->data.buswidth > 1 && op->data.nbytes > 4) {
@@ -748,8 +762,15 @@ void spi_update_config(struct spi_slave *slave, const struct spi_mem_op *op)
 
 	dw_write(priv, DW_SPI_CTRLR0_EXT, spi_ctrl0);
 
-	rx_sample = 1; //75M Use 1
-	dw_write(priv, DW_SPI_RX_SAMPLE_DLY, rx_sample);
+	if (priv->rx_sample != param.cur_rx_delay) {
+		dw_write(priv, DW_SPI_RX_SAMPLE_DLY, priv->rx_sample);
+		param.cur_rx_delay = priv->rx_sample;
+	}
+
+	if (priv->txd_drive_edge != param.cur_txd_drive_edge) {
+		dw_write(priv, DW_TXD_DRIVE_EDGE, priv->txd_drive_edge);
+		param.cur_txd_drive_edge = priv->txd_drive_edge;
+	}
 }
 
 #define SPI_GET_BYTE(_val, _idx) \
@@ -814,7 +835,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 {
 	struct udevice *bus = slave->dev->parent;
 	struct dw_spi_priv *priv = dev_get_priv(bus);
-	u32 entries, room, in_len, len;
+	u32 entries, room, len;
 	u32 val = 0, tmp = 0xffffffff;
 	void *in_buf;
 	const void *out_buf;
@@ -823,6 +844,8 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 	len = 0;
 	in_buf = NULL;
 	out_buf = NULL;
+	u32 retry_num = 0;
+	u32 cnt = 0;
 
 	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		out_buf = op->data.buf.out;
@@ -836,7 +859,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 	/* write addr */
 	write_addr_data(slave, op);
 
-	room = min((priv->fifo_len - dw_read(priv, DW_SPI_TXFLR)),  (len + data_width -1) / data_width);
+	room = min((priv->fifo_len - dw_read(priv, DW_SPI_TXFLR)),  (len + data_width - 1) >> __builtin_ctz(data_width));
 	while (room) {
 		if (len < data_width) {
 			tmp = 0xffffffff;
@@ -849,11 +872,9 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 			if (data_width == 1)
 				dw_write(priv, DW_SPI_DR, *(u8 *)out_buf);
 			else if (data_width == 2) {
-				val = dw_swap(*(u16 *)out_buf, data_width);
-				dw_write(priv, DW_SPI_DR, val);
+				dw_write(priv, DW_SPI_DR, *(u16 *)out_buf);
 			} else {
-				val = dw_swap(*(u32 *)out_buf, data_width);
-				dw_write(priv, DW_SPI_DR, val);
+				dw_write(priv, DW_SPI_DR, *(u32 *)out_buf);
 			}
 			len -= data_width;
 			out_buf += data_width;
@@ -863,7 +884,6 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 
 	dw_write(priv, DW_SPI_SER, 1);
 	external_cs_manage(slave->dev, false);
-	u32 retry_num = 0;
 
 	while (len > 0) {
 		entries = dw_read(priv, DW_SPI_TXFLR);
@@ -875,7 +895,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 			}
 		}
 
-		room = min(priv->fifo_len - entries, (len + data_width -1) / data_width);
+		room = min(priv->fifo_len - entries, (len + data_width - 1) >> __builtin_ctz(data_width));
 		for (; room; --room) {
 			if (len < data_width) {
 				tmp = 0xffffffff;
@@ -888,11 +908,9 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 				if (data_width == 1)
 					dw_write(priv, DW_SPI_DR, *(u8 *)out_buf);
 				else if (data_width == 2) {
-					val = dw_swap(*(u16 *)out_buf, data_width);
-					dw_write(priv, DW_SPI_DR, val);
+					dw_write(priv, DW_SPI_DR, *(u16 *)out_buf);
 				} else {
-					val = dw_swap(*(u32 *)out_buf, data_width);
-					dw_write(priv, DW_SPI_DR, val);
+					dw_write(priv, DW_SPI_DR, *(u32 *)out_buf);
 				}
 				len -= data_width;
 				out_buf += data_width;
@@ -908,10 +926,13 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 		entries = 0;
 		entries = dw_read(priv, DW_SPI_RXFLR);
 		if (!entries) {
-			val = dw_read(priv, DW_SPI_RISR);
-			if (val & SPI_INT_RXOI) {
-				printf("FIFO overflow on Rx\n");
-				return -1;
+			if (cnt++ >= 50) {
+				val = dw_read(priv, DW_SPI_RISR);
+				cnt = 0;
+				if (val & SPI_INT_RXOI) {
+					printf("FIFO overflow on Rx\n");
+					return -1;
+				}
 			}
 			continue;
 		}
@@ -924,7 +945,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 					len -=  data_width;
 				} else {
 					val = dw_read(priv, DW_SPI_DR);
-					memcpy(in_buf, &val, in_len);
+					memcpy(in_buf, &val, len);
 					len -=  len;
 				}
 			} else {
@@ -936,16 +957,99 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 	return 0;
 }
 
+// Spinor use CH2 and CH3
+static void dma_channel_init(void)
+{
+	mmio_clrsetbits_32(TOP_DMA_CH_REMAP0, 0x3f << DMA_REMAP_CH2_OFFSET, DMA_RX_REQ_SPI_NOR << DMA_REMAP_CH2_OFFSET);
+	mmio_clrsetbits_32(TOP_DMA_CH_REMAP0, 0x3f << DMA_REMAP_CH3_OFFSET, DMA_TX_REQ_SPI_NOR << DMA_REMAP_CH3_OFFSET);
+	mmio_clrsetbits_32(TOP_DMA_CH_REMAP0, 0x1 << 31, 1 << DMA_REMAP_UPDATE_OFFSET);
+}
+
 bool can_dma(struct dw_spi_priv *priv, const struct spi_mem_op *op)
 {
 	if (op->data.nbytes > priv->fifo_len * priv->n_bytes)
-		return false;
+		return true;
 	return false;
 }
 
-int dma_set_up(struct dw_spi_priv *priv, const struct spi_mem_op *op)
+static void dw_spi_nor_dma_setup(struct dw_spi_priv *priv, const struct spi_mem_op *op)
 {
-	return 0;
+	u32 reg = 0;
+	u32 trigger_len = 0;
+	u8 *out_buf = NULL;
+	void *in_buf = NULL;
+
+	dma_channel_init();
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		out_buf = (u8 *)op->data.buf.out;
+		/* CPU fill 64 byte data to fifo */
+		out_buf += PRE_FILL_SIZE;
+		dma_mem2dev_setting((unsigned int *)out_buf, op->data.nbytes - PRE_FILL_SIZE, (unsigned int *)(priv->regs + DW_SPI_DR), DMA_SPI0);
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		in_buf = op->data.buf.in;
+		dma_dev2mem_setting(in_buf, op->data.nbytes, (unsigned int *)(priv->regs + DW_SPI_DR), DMA_SPI0);
+	}
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		reg |= 1 << 1;
+		trigger_len = op->cmd.nbytes + op->addr.nbytes;
+		dw_write(priv, DW_SPI_DMACR, reg);
+		dw_write(priv, DW_SPI_DMATDLR, 0xF);
+	} else if (op->data.dir == SPI_MEM_DATA_IN) {
+		reg |= 1 << 0;
+		trigger_len = priv->fifo_len / 2;
+
+		dw_write(priv, DW_SPI_DMACR, reg);
+		dw_write(priv, DW_SPI_DMARDLR, trigger_len - 1);
+	}
+}
+
+int dw_spinor_dma_transfer(struct spi_slave *slave, const struct spi_mem_op *op)
+{
+	struct udevice *bus = slave->dev->parent;
+	struct dw_spi_priv *priv = dev_get_priv(bus);
+	int ret = 0;
+	u32 room = 0, tx_len;
+	u8 *buf = NULL;
+	u32 len;
+
+	if (op->cmd.nbytes)
+		dw_write(priv, DW_SPI_DR, op->cmd.opcode);
+
+	write_addr_data(slave, op);
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		room = min((u32)(priv->fifo_len - dw_read(priv, DW_SPI_TXFLR)), (u32)PRE_FILL_SIZE / priv->n_bytes);//FIXME:There may be an issue with one line.
+		buf = (u8 *)op->data.buf.out;
+		while (room) {
+			if (priv->n_bytes == 1)
+				dw_write(priv, DW_SPI_DR, *buf);
+			else
+				dw_write(priv, DW_SPI_DR, *(u32 *)buf);
+
+			buf += priv->n_bytes;
+			room -= 1;
+		}
+		tx_len = op->data.nbytes - (buf - (u8 *)op->data.buf.out);
+	}
+
+	if (op->data.dir == SPI_MEM_DATA_IN)
+		len = op->data.nbytes;
+	else
+		len = tx_len;
+
+	dw_write(priv, DW_SPI_SER, 1);
+	external_cs_manage(slave->dev, false);
+
+	// wait dma transfer done
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		ret = dma_start_transfer(DMA_SPI0);
+
+	if (op->data.dir == SPI_MEM_DATA_IN)
+		ret = dma_start_receive(DMA_SPI0);
+
+	return ret;
 }
 
 int dw_spi_wait_mem_op_done(struct dw_spi_priv *priv)
@@ -970,8 +1074,46 @@ int dw_spi_wait_mem_op_done(struct dw_spi_priv *priv)
 	while ((dw_read(priv, DW_SPI_SR) & SR_BUSY) && retry--)
 		udelay(delay);
 
-	if (retry < 0)
+	if (retry < 0) {
+		pr_err("dw_spi_wait_mem_op_done: timeout!\n");
 		return -1;
+	}
+	return 0;
+}
+
+void handle_data_for_write(const u8 *out, const struct spi_mem_op *op)
+{
+	u8 *buf = (u8 *)out;
+	u32 len = op->data.nbytes;
+	int i;
+
+	if (op->data.dir == SPI_MEM_DATA_IN)
+		return;
+
+	if (op->data.nbytes > 4 && op->data.buswidth > 1) {
+		for (i = 0; i < len / 4; i++) {
+			swap(buf[0], buf[3]);
+			swap(buf[1], buf[2]);
+			buf += 4;
+		}
+	}
+
+	//switch (len % 4) {
+	//case 3:
+	//	swap(buf[0], buf[2]);
+	//case 2:
+	//	swap(buf[0], buf[1]);
+	//	break;
+	//case 1:
+	//default:
+	//	break;
+	//}
+}
+
+static int dw_spi_init_mem_buf(const struct spi_mem_op *op)
+{
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		handle_data_for_write(op->data.buf.out, op);
 
 	return 0;
 }
@@ -987,16 +1129,33 @@ static int dw_spi_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	struct dw_spi_priv *priv = dev_get_priv(bus);
 	bool support_dma = false;
 
+	/*
+	 * Collect the outbound data into a single buffer to speed the
+	 * transmission up at least on the initial stage.
+	 */
+	ret = dw_spi_init_mem_buf(op);
+	if (ret)
+		return ret;
+
 	dw_write(priv, DW_SPI_SSIENR, 0);
 	spi_update_config(slave, op);
 
 	support_dma = can_dma(priv, op);
 	if (support_dma)
-		dma_set_up(priv, op);
+		dw_spi_nor_dma_setup(priv, op);
 
 	dw_write(priv, DW_SPI_SSIENR, 1);
-	ret = dw_spi_write_then_read(slave, op);
-	if (!ret)
+
+	if (support_dma) {
+		ret = dw_spinor_dma_transfer(slave, op);
+		dw_write(priv, DW_SPI_DMACR, 0);
+	} else {
+		ret = dw_spi_write_then_read(slave, op);
+	}
+
+	if (unlikely(ret))
+		ret = dw_spi_check_status(priv, true);
+	else
 		ret = dw_spi_wait_mem_op_done(priv);
 
 	dw_write(priv, DW_SPI_SER, 0);
@@ -1081,11 +1240,62 @@ static int dw_spi_remove(struct udevice *bus)
 	return 0;
 }
 
+void dw_spi_set_param(struct udevice *bus, unsigned int *param)
+{
+	struct dw_spi_priv *priv = dev_get_priv(bus);
+
+	priv->rx_sample = param[0];
+	priv->txd_drive_edge = param[1];
+}
+
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+void dw_spi_get_tuning_param(struct udevice *bus, struct tuning_ops *tuning_param)
+{
+	struct dw_spi_priv *priv = dev_get_priv(bus);
+
+	tuning_param->param_num = 2;
+
+	//RX_SAMPLE_DLY:
+	tuning_param->param_ranges[0].min = 0;
+	tuning_param->param_ranges[0].max = 255;
+
+	//TXD_DRIVE_EDGE:
+	tuning_param->param_ranges[0].min = 0;
+	tuning_param->param_ranges[0].max = (dw_read(priv, DW_SPI_BAUDR) / 2);
+
+	tuning_param->old_param[0] = dw_read(priv, DW_SPI_RX_SAMPLE_DLY);
+	tuning_param->old_param[1] = dw_read(priv, DW_TXD_DRIVE_EDGE);
+}
+
+int dw_spi_tuning_fail_policy(struct udevice *bus, int retry, struct tuning_ops *tuning_param)
+{
+	unsigned int param[2];
+
+	if (retry < 1) {
+		dw_spi_set_speed(bus, 50000000);
+		pr_err("Tuning fail policy: speed = 50M\n");
+	} else {
+		//Use old param
+		param[0] = tuning_param->old_param[0];
+		param[1] = tuning_param->old_param[1];
+		dw_spi_set_param(bus, param);
+		pr_err("Tuning fail policy: use old param\n");
+		return -1;
+	}
+	return 0;
+}
+#endif
+
 static const struct dm_spi_ops dw_spi_ops = {
 	.xfer		= dw_spi_xfer,
 	.mem_ops	= &dw_spi_mem_ops,
 	.set_speed	= dw_spi_set_speed,
 	.set_mode	= dw_spi_set_mode,
+	.param_set = dw_spi_set_param,
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+	.tuning_param_get = dw_spi_get_tuning_param,
+	.tuning_fail_policy = dw_spi_tuning_fail_policy,
+#endif
 	/*
 	 * cs_info is not needed, since we require all chip selects to be
 	 * in the device tree explicitly

@@ -162,6 +162,56 @@ int spi_write_then_read(struct spi_slave *slave, const u8 *opcode,
 	return ret;
 }
 
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+
+int spi_get_tuning_param(struct udevice *bus, struct tuning_ops *tuning_param)
+{
+	struct dm_spi_ops *ops;
+	int ret = 0;
+
+	ops = spi_get_ops(bus);
+
+	if (ops->tuning_param_get)
+		ops->tuning_param_get(bus, tuning_param);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
+int spi_set_param(struct udevice *bus, unsigned int *param)
+{
+	struct dm_spi_ops *ops;
+	int ret = 0;
+
+	ops = spi_get_ops(bus);
+
+	if (ops->param_set)
+		ops->param_set(bus, param);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
+int spi_tuning_fail_policy(struct udevice *bus,  int retry, struct tuning_ops *tuning_param)
+{
+	struct dm_spi_ops *ops;
+	int ret = 0;
+
+	ops = spi_get_ops(bus);
+
+	if (ops->tuning_fail_policy) {
+		ret = ops->tuning_fail_policy(bus, retry, tuning_param);
+	} else {
+		ret = -EINVAL;
+		dev_err(bus, "Cannot get tuning_fail_policy\n");
+	}
+
+	return ret;
+}
+#endif
+
 #if !CONFIG_IS_ENABLED(OF_PLATDATA)
 static int spi_child_post_bind(struct udevice *dev)
 {

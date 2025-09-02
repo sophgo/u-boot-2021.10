@@ -37,6 +37,7 @@ struct flash_info {
 
 	u16		page_size;
 	u16		addr_width;
+	u8		dtr_dummy_cycle;
 
 	u32		flags;
 #define SECT_4K			BIT(0)	/* SPINOR_OP_BE_4K works uniformly */
@@ -69,6 +70,7 @@ struct flash_info {
 #define SPI_NOR_HAS_SST26LOCK	BIT(15)	/* Flash supports lock/unlock via BPR */
 #define SPI_NOR_OCTAL_READ	BIT(16)	/* Flash supports Octal Read */
 #define SPI_NOR_OCTAL_DTR_READ	BIT(17)	/* Flash supports Octal DTR Read */
+#define SPI_NOR_DTR_READ	BIT(18)	/* Flash supports DTR Read */
 
 };
 

@@ -32,6 +32,8 @@
 #include <spi.h>
 
 #include "sf_internal.h"
+#include "mmio.h"
+#include <spi_tuning.h>
 
 /* Define max times to check status register before we give up. */
 
@@ -258,21 +260,23 @@ static void spi_nor_setup_op(const struct spi_nor *nor,
 		op->data.buswidth = spi_nor_get_protocol_data_nbits(proto);
 
 	if (spi_nor_protocol_is_dtr(proto)) {
-		/*
-		 * spi-mem supports mixed DTR modes, but right now we can only
-		 * have all phases either DTR or STR. IOW, spi-mem can have
-		 * something like 4S-4D-4D, but spi-nor can't. So, set all 4
-		 * phases to either DTR or STR.
-		 */
-		op->cmd.dtr = op->addr.dtr = op->dummy.dtr =
-			op->data.dtr = true;
-
-		/* 2 bytes per clock cycle in DTR mode. */
-		op->dummy.nbytes *= 2;
+		// /*
+		//  * spi-mem supports mixed DTR modes, but right now we can only
+		//  * have all phases either DTR or STR. IOW, spi-mem can have
+		//  * something like 4S-4D-4D, but spi-nor can't. So, set all 4
+		//  * phases to either DTR or STR.
+		//  */
+		// op->cmd.dtr = op->addr.dtr = op->dummy.dtr =
+		//  op->data.dtr = true;
+		op->data.dtr = true;
+		// /* 2 bytes per clock cycle in DTR mode. */
+		// op->dummy.nbytes *= 2;
 
 		ext = spi_nor_get_cmd_ext(nor, op);
-		op->cmd.opcode = (op->cmd.opcode << 8) | ext;
-		op->cmd.nbytes = 2;
+		if (ext) {
+			op->cmd.opcode = (op->cmd.opcode << 8) | ext;
+			op->cmd.nbytes = 2;
+		}
 	}
 }
 
@@ -358,11 +362,12 @@ static ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len,
 
 	/* convert the dummy cycles to the number of bytes */
 	op.dummy.nbytes = (nor->read_dummy * op.dummy.buswidth) / 8;
-	if (spi_nor_protocol_is_dtr(nor->read_proto))
-		op.dummy.nbytes *= 2;
 
 	while (remaining) {
 		op.data.nbytes = remaining < UINT_MAX ? remaining : UINT_MAX;
+		if (op.data.nbytes > 4)
+			op.data.nbytes = op.data.nbytes & ~0x03;
+
 		ret = spi_mem_adjust_op_size(nor->spi, &op);
 		if (ret)
 			return ret;
@@ -1699,8 +1704,12 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 			page_offset = do_div(aux, nor->page_size);
 		}
 		/* the size of data remaining on the first page */
-		page_remain = min_t(size_t,
-				    nor->page_size - page_offset, len - i);
+		if ((len - i) >= 4)
+			page_remain = min_t(size_t,
+						nor->page_size - page_offset, (len - i) & ~0x3);
+		else
+			page_remain = min_t(size_t,
+						nor->page_size - page_offset, len - i);
 
 #ifdef CONFIG_SPI_FLASH_BAR
 		ret = write_bar(nor, addr);
@@ -2695,6 +2704,11 @@ static void spi_nor_default_init_fixups(struct spi_nor *nor)
 		nor->fixups->default_init(nor);
 }
 
+__used static uint8_t check_boot_from_spinor(void)
+{
+	return mmio_read_32(BOOT_SOURCE_FLAG_ADDR) == BOOT_SRC_SPI_NOR;
+}
+
 static int spi_nor_init_params(struct spi_nor *nor,
 			       const struct flash_info *info,
 			       struct spi_nor_flash_parameter *params)
@@ -2742,6 +2756,15 @@ static int spi_nor_init_params(struct spi_nor *nor,
 					  0, 8, SPINOR_OP_READ_1_1_4,
 					  SNOR_PROTO_1_1_4);
 	}
+#ifdef CONFIG_ENABLE_SPINOR_DTR
+	// Only valid when booting from spinor now
+	if (check_boot_from_spinor() && info->flags & SPI_NOR_DTR_READ) {
+		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_4_4_DTR;
+		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_4_4_DTR],
+					0, info->dtr_dummy_cycle, SPINOR_OP_READ_1_4_4_DTR,
+					SNOR_PROTO_1_4_4_DTR);
+	}
+#endif
 
 	if (info->flags & SPI_NOR_OCTAL_READ) {
 		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_1_8;
@@ -2951,8 +2974,8 @@ static int spi_nor_check_readop(struct spi_nor *nor,
 
 	op.dummy.nbytes = (read->num_mode_clocks + read->num_wait_states) *
 			  op.dummy.buswidth / 8;
-	if (spi_nor_protocol_is_dtr(nor->read_proto))
-		op.dummy.nbytes *= 2;
+	// if (spi_nor_protocol_is_dtr(nor->read_proto))
+	// 	op.dummy.nbytes *= 2;
 
 	return spi_nor_check_op(nor, &op);
 }
@@ -3786,6 +3809,185 @@ void spi_nor_set_fixups(struct spi_nor *nor)
 #endif
 }
 
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+struct spi_nor_tuning_pass_param_grp {
+	unsigned int start;
+	unsigned int count;
+};
+
+static inline void u32_to_bytes_reverse(uint32_t val, uint8_t arr[4])
+{
+	arr[0] = (val >> 24) & 0xFF;
+	arr[1] = (val >> 16) & 0xFF;
+	arr[2] = (val >> 8) & 0xFF;
+	arr[3] = val & 0xFF;
+}
+
+int spi_nor_generic_tuning(struct spi_nor *nor)
+{
+	//TODO: Only tune once? For each cost 6ms
+	struct udevice *bus = nor->spi->dev->parent;
+	struct spi_nor_tuning_pass_param_grp tuning_groups[10];
+	unsigned int group_idx;
+	unsigned int tuning_pass_param[256];
+	unsigned int tuning_value_idx;
+	unsigned int prev_tuning_value;
+	unsigned int max_count;
+	unsigned int select_grp;
+	unsigned int param[2];
+	u8 header_buf[4];
+	u8 header[4];
+	int ret = 0;
+	int retry = 0;
+	struct tuning_ops tuning_param = {0};
+
+	u32_to_bytes_reverse(FDT_MAGIC, header);
+
+	max_count = 0;
+	select_grp = 0;
+
+	ret = spi_get_tuning_param(bus, &tuning_param);
+	if (ret < 0)
+		return -EINVAL;
+
+	printf("=== SPINOR tuning start ===\n");
+
+tuning_retry:
+	group_idx = 0;
+	tuning_value_idx = 0;
+	prev_tuning_value = 0;
+
+	memset(&tuning_groups, 0x0, sizeof(struct spi_nor_tuning_pass_param_grp) * 10);
+
+	for (param[0] = tuning_param.param_ranges[0].min; param[0] <= tuning_param.param_ranges[0].max; param[0]++) {
+		for (param[1] = (tuning_param.param_num > 1 ? tuning_param.param_ranges[1].min : 0);
+			 param[1] <= (tuning_param.param_num > 1 ? tuning_param.param_ranges[1].max : 1);
+			 param[1]++) {
+			unsigned int tmp;
+			u8	id[SPI_NOR_MAX_ID_LEN];
+
+			ret = spi_set_param(bus, param);
+			if (ret < 0)
+				return -EINVAL;
+			tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
+			if (tmp < 0)
+				continue;
+
+			if (!memcmp(nor->info->id, id, nor->info->id_len)) {
+				memset(header_buf, 0x0, 4);
+				if (!(nor->read(nor, SPL_BOOT_PART_OFFSET, 4, header_buf)))
+					continue;
+				else if (!memcmp(header_buf, header, 4)) {
+					if (tuning_value_idx == 0 && group_idx == 0) {
+						tuning_groups[group_idx].start = tuning_value_idx;
+						tuning_groups[group_idx].count = 1;
+					} else if ((param[0] - prev_tuning_value) == 0x1) {
+						tuning_groups[group_idx].count++;
+					} else {
+						group_idx++;
+						tuning_groups[group_idx].start = tuning_value_idx;
+						tuning_groups[group_idx].count = 1;
+					}
+
+					prev_tuning_value = param[0];
+					tuning_pass_param[tuning_value_idx] = param[0];
+					tuning_value_idx++;
+					break;
+				}
+			}
+		}
+	}
+
+	pr_debug("Param1: tuning_value_idx=%d, group_idx=%d\n", tuning_value_idx, group_idx);
+	if (tuning_value_idx != 0) { /* at least find 1 parameter */
+		for (int i = 0; i <= group_idx; i++) {
+			if (tuning_groups[i].count > max_count) {
+				select_grp = i;
+				max_count = tuning_groups[i].count;
+			}
+			pr_debug("tuning_pass_param[%d].start=%d, count=%d\n", i,
+				tuning_groups[i].start, tuning_groups[i].count);
+		}
+		param[0] = tuning_pass_param[tuning_groups[select_grp].start + (max_count / 2)];
+		group_idx = 0;
+		tuning_value_idx = 0;
+		prev_tuning_value = 0;
+
+		memset(&tuning_groups, 0x0, sizeof(struct spi_nor_tuning_pass_param_grp) * 10);
+		memset(&tuning_pass_param, 0x0, sizeof(unsigned int) * 256);
+		for (param[1] = (tuning_param.param_num > 1 ? tuning_param.param_ranges[1].min : 0);
+			param[1] <= (tuning_param.param_num > 1 ? tuning_param.param_ranges[1].max : 0);
+			param[1]++) {
+			unsigned int tmp;
+			u8	id[SPI_NOR_MAX_ID_LEN];
+
+			ret = spi_set_param(bus, param);
+			if (ret < 0)
+				return -EINVAL;
+			tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
+			if (tmp < 0)
+				continue;
+			if (!memcmp(nor->info->id, id, nor->info->id_len)) {
+				memset(header_buf, 0x0, 4);
+				if (!(nor->read(nor, SPL_BOOT_PART_OFFSET, 4, header_buf))) {
+					continue;
+				} else if (!memcmp(header_buf, header, 4)) {
+					if (tuning_value_idx == 0 && group_idx == 0) {
+						tuning_groups[group_idx].start = tuning_value_idx;
+						tuning_groups[group_idx].count = 1;
+					} else if ((param[1] - prev_tuning_value) == 0x1) {
+						tuning_groups[group_idx].count++;
+					} else {
+						group_idx++;
+						tuning_groups[group_idx].start = tuning_value_idx;
+						tuning_groups[group_idx].count = 1;
+					}
+
+					prev_tuning_value = param[1];
+					tuning_pass_param[tuning_value_idx] = param[1];
+					tuning_value_idx++;
+				}
+			}
+		}
+		if (tuning_value_idx != 0) { /* at least find 1 parameter */
+			for (int i = 0; i <= group_idx; i++) {
+				if (tuning_groups[i].count > max_count) {
+					select_grp = i;
+					max_count = tuning_groups[i].count;
+				}
+				pr_debug("Param2: tuning_pass_param[%d].start=%d, count=%d\n", i,
+					tuning_groups[i].start, tuning_groups[i].count);
+			}
+			if (tuning_param.param_num > 1)
+				param[1] = tuning_pass_param[tuning_groups[select_grp].start + (max_count / 2)];
+		}
+		spi_set_param(bus, param);
+		printf("=== Tuning finished: Rx delay:%d, TDE:%d ===\n", param[0], (tuning_param.param_num > 1 ? param[1] : 0));
+		return 0;
+	}
+
+	/* Can't find an suitable parameter for this frequency, try to use fail policy */
+	ret = spi_tuning_fail_policy(bus, retry, &tuning_param);
+	if (ret == -EINVAL) {
+		param[0] = tuning_param.old_param[0];
+		if (tuning_param.param_num > 1)
+			param[1] = tuning_param.old_param[1];
+
+		if (!spi_set_param(bus, param))
+			pr_err("No ops for spi_set_param! Check!\n");
+		else
+			pr_err("Tuning failed, using prvious value.\n");
+	}
+
+	if (!ret) {
+		retry++;
+		goto tuning_retry;
+	}
+
+	return -EINVAL;
+}
+#endif
+
 int spi_nor_scan(struct spi_nor *nor)
 {
 	struct spi_nor_flash_parameter params;
@@ -3905,7 +4107,8 @@ int spi_nor_scan(struct spi_nor *nor)
 	mtd->writebufsize = nor->page_size;
 
 	/* Set spi mode according to hwcaps */
-	if ((params.hwcaps.mask & SNOR_HWCAPS_READ_1_1_4) || (params.hwcaps.mask & SNOR_HWCAPS_READ_1_4_4))
+	if ((params.hwcaps.mask & SNOR_HWCAPS_READ_1_1_4) || (params.hwcaps.mask & SNOR_HWCAPS_READ_1_4_4) ||
+		(params.hwcaps.mask & SNOR_HWCAPS_READ_1_4_4_DTR))
 		spi->mode |= SPI_RX_QUAD;
 	if ((params.hwcaps.mask & SNOR_HWCAPS_PP_1_1_4) || (params.hwcaps.mask & SNOR_HWCAPS_PP_1_4_4))
 		spi->mode |= SPI_TX_QUAD;
@@ -3925,10 +4128,7 @@ int spi_nor_scan(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
-	if (spi_nor_protocol_is_dtr(nor->read_proto)) {
-		 /* Always use 4-byte addresses in DTR mode. */
-		nor->addr_width = 4;
-	} else if (nor->addr_width) {
+	if (nor->addr_width) {
 		/* already configured from SFDP */
 	} else if (info->addr_width) {
 		nor->addr_width = info->addr_width;
@@ -3977,7 +4177,10 @@ int spi_nor_scan(struct spi_nor *nor)
 	print_size(nor->size, "");
 	puts("\n");
 #endif
-
+#ifdef CONFIG_ENABLE_SPINOR_TUNING
+	if (check_boot_from_spinor())
+		spi_nor_generic_tuning(nor);
+#endif
 	return 0;
 }
 

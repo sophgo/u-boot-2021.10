@@ -107,6 +107,7 @@
 
 /* usb */
 #define USB_BASE            0x04340000
+#define USB2_0_PHY_BASE     0x03006000     // usb 2.0 phy
 
 /* ethernet phy */
 #define ETH_PHY_BASE        0x03009000
@@ -189,6 +190,7 @@
 #define BOOT_SOURCE_FLAG_SIZE 4
 #define MAGIC_NUM_USB_DL 0x4D474E31 // MGN1
 #define MAGIC_NUM_SD_DL 0x4D474E32 // MGN2
+#define BOOT_SRC_SPI_NOR 0xCE02
 
 #define BOOT_LOG_LEN_ADDR (BOOT_SOURCE_FLAG_ADDR + BOOT_SOURCE_FLAG_SIZE)
 #define BOOT_LOG_LEN_SIZE 4
