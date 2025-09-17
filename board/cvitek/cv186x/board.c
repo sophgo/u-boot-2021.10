@@ -735,6 +735,9 @@ static int setup_mac(void)
 	int i;
 	uint8_t mac[ETHER_NUM][MAC_SIZE];
 	char eth[16];
+	int flag = 0;
+	char buf[ARP_HLEN_ASCII + 1];
+	char *env_eth = NULL;
 
 	// get ethaddr from emmc boot1 part
 	for (i = 0; i < ETHER_NUM; i++) {
@@ -755,9 +758,21 @@ static int setup_mac(void)
 			continue;
 		}
 
-		if (eth_env_set_enetaddr(eth, mac[i]) == -EEXIST)
-			printf("mac%d address has benn set before\n", i);
+		sprintf(buf, "%pM", mac[i]);
+		env_eth = env_get(eth);
+		if (NULL != env_eth) {
+			if (strncasecmp(env_eth, buf, sizeof(buf)) != 0) {
+				env_set(eth, buf);
+				flag = 1;
+			}
+		} else {
+			env_set(eth, buf);
+			flag = 1;
+		}
 	}
+
+	if (flag != 0)
+		run_command("saveenv", 0);	//save mac address into u-boot.env
 
 	return 0;
 }
