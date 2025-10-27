@@ -538,6 +538,9 @@ int phy_init(void)
 #ifdef CONFIG_PHY_REALTEK
 	phy_realtek_init();
 #endif
+#ifdef CONFIG_PHY_MAXIO
+	phy_maxio_init();
+#endif
 #ifdef CONFIG_PHY_MOTORCOMM
 	phy_motorcomm_init();
 #endif

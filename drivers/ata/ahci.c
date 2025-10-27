@@ -99,11 +99,12 @@ static int waiting_for_cmd_completed(void __iomem *offset,
 {
 	int i;
 	u32 status;
+	int timeout_usec = timeout_msec * 1000;
 
-	for (i = 0; ((status = readl(offset)) & sign) && i < timeout_msec; i++)
-		msleep(1);
+	for (i = 0; ((status = readl(offset)) & sign) && i < timeout_usec; i++)
+		udelay(1);
 
-	return (i < timeout_msec) ? 0 : -1;
+	return (i < timeout_usec) ? 0 : -1;
 }
 
 int __weak ahci_link_up(struct ahci_uc_priv *uc_priv, int port)

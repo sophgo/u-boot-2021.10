@@ -257,7 +257,7 @@
 		"mtdparts=" PARTS "\0" \
 		"mtdids=" MTDIDS_DEFAULT "\0" \
 		"root=" ROOTARGS "\0" \
-		"sddev=1\0" \
+		"sddev=0\0" \
 		"sdboot=" SD_BOOTM_COMMAND "\0" \
 		"recboot=" RECBOOTCOMMAND "\0" \
 		"UBOOT_ENV_SUPPORT_OTA_ENABLE=1\0" \
@@ -396,5 +396,11 @@
 	#define CONFIG_BOOTCOMMAND ""
 
 #endif /* CONFIG_USE_DEFAULT_ENV */
+
+#define CVI_SPL_BOOTAGRS \
+	PARTS " "  \
+	ROOTARGS " " \
+	"console=ttyS0,115200 " \
+	OTHERBOOTARGS "\0"
 
 #endif /* __CV186X_ASIC_H__ */

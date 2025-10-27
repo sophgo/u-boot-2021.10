@@ -100,6 +100,10 @@ static int do_mmcbcbx(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 		if (!vars[1] || !strlen(vars[1]))
 			return CMD_RET_FAILURE;
 
+		if (vars[2]) {
+			env_set("ota_one_partition", vars[2]);
+		}
+
 		save = malloc(strlen(vars[1]) + 1);
 		if (!save)
 			return -ENOMEM;

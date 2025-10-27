@@ -227,6 +227,9 @@ config PHY_NXP_C45_TJA11XX
 config PHY_REALTEK
 	bool "Realtek Ethernet PHYs support"
 
+config PHY_MAXIO
+	bool "Maxio Ethernet PHYs support"
+
 config RTL8211E_PINE64_GIGABIT_FIX
 	bool "Fix gigabit throughput on some Pine64+ models"
 	depends on PHY_REALTEK

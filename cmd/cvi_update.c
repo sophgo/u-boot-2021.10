@@ -165,6 +165,7 @@ static int _storage_update(enum storage_type_e type)
 	char strStorage[10] = { '\0' };
 	char fs_type_Storage[10] = { '\0' };
 	uint8_t sd_index = 0;
+	uint8_t fip_name[16] = {0};
 
 	if (type == sd_dl) {
 		printf("Start SD downloading...\n");
@@ -176,10 +177,17 @@ static int _storage_update(enum storage_type_e type)
 		sd_index = 1;
 		strlcpy(strStorage, "mmc 1:1", 9);
 #endif
+
+#if defined(CONFIG_SPL)
+		strcpy(fip_name, "fip_spl.bin");
+#else
+		strcpy(fip_name, "fip.bin");
+#endif
+
 		snprintf(cmd, 255, "mmc dev %u:1 SD_HS", sd_index);
 		run_command(cmd, 0);
-		snprintf(cmd, 255, "fatload %s %p fip.bin;", strStorage,
-			 (void *)HEADER_ADDR);
+		snprintf(cmd, 255, "fatload %s %p %s;", strStorage,
+			 (void *)HEADER_ADDR, fip_name);
 		ret = run_command(cmd, 0);
 		if (ret) {
 			// Consider SD card without MBR
@@ -193,8 +201,8 @@ static int _storage_update(enum storage_type_e type)
 #endif
 			snprintf(cmd, 255, "mmc dev %u:0 SD_HS", sd_index);
 			run_command(cmd, 0);
-			snprintf(cmd, 255, "fatload %s %p fip.bin;", strStorage,
-				 (void *)HEADER_ADDR);
+			snprintf(cmd, 255, "fatload %s %p %s;", strStorage,
+				 (void *)HEADER_ADDR, fip_name);
 			ret = run_command(cmd, 0);
 			if (ret)
 				return ret;

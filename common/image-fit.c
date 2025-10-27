@@ -1886,16 +1886,16 @@ int fit_conf_get_prop_node(const void *fit, int noffset,
 
 static int fit_image_select(const void *fit, int rd_noffset, int verify)
 {
-	fit_image_print(fit, rd_noffset, "   ");
+	// fit_image_print(fit, rd_noffset, "   ");
 
-	if (verify) {
-		puts("   Verifying Hash Integrity ... ");
-		if (!fit_image_verify(fit, rd_noffset)) {
-			puts("Bad Data Hash\n");
-			return -EACCES;
-		}
-		puts("OK\n");
-	}
+	// if (verify) {
+	// 	puts("   Verifying Hash Integrity ... ");
+	// 	if (!fit_image_verify(fit, rd_noffset)) {
+	// 		puts("Bad Data Hash\n");
+	// 		return -EACCES;
+	// 	}
+	// 	puts("OK\n");
+	// }
 
 	return 0;
 }

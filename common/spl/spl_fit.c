@@ -170,6 +170,7 @@ static int spl_fit_get_image_node(const struct spl_fit_info *ctx,
 		return err;
 
 	debug("%s: '%s'\n", type, str);
+	printf("%s: '%s'\n", type, str);
 
 	node = fdt_subnode_offset(ctx->fit, ctx->images_node, str);
 	if (node < 0) {
@@ -255,7 +256,7 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 		if (fit_image_get_type(fit, node, &type))
 			puts("Cannot get image type.\n");
 		else
-			debug("%s ", genimg_get_type_name(type));
+			printf("%s\n ", genimg_get_type_name(type));
 	}
 
 	if (IS_ENABLED(CONFIG_SPL_GZIP)) {
@@ -394,7 +395,6 @@ static int spl_fit_append_fdt(struct spl_image_info *spl_image,
 		if (ret < 0)
 			return ret;
 	}
-
 	/* Make the load-address of the FDT available for the SPL framework */
 	spl_image->fdt_addr = map_sysmem(image_info.load_addr, 0);
 	if (CONFIG_IS_ENABLED(FIT_IMAGE_TINY))
@@ -528,6 +528,8 @@ static int spl_fit_image_get_os(const void *fit, int noffset, uint8_t *os)
 static void *spl_get_fit_load_buffer(size_t size)
 {
 	void *buf;
+
+	return (void*)UIMAG_ADDR;
 
 	buf = malloc(size);
 	if (!buf) {
@@ -680,15 +682,12 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	ret = spl_simple_fit_read(&ctx, info, sector, fit);
 	if (ret < 0)
 		return ret;
-
 	/* skip further processing if requested to enable load-only use cases */
 	if (spl_load_simple_fit_skip_processing())
 		return 0;
-
 	ret = spl_simple_fit_parse(&ctx);
 	if (ret < 0)
 		return ret;
-
 	if (IS_ENABLED(CONFIG_SPL_FPGA))
 		spl_fit_load_fpga(&ctx, info, sector);
 
@@ -718,12 +717,12 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		      __func__, node);
 		return -1;
 	}
-
+	// Save decompression start time
+	board_save_time_record(TIME_RECORDS_FIELD_DECOMPRESS_KERNEL_START);
 	/* Load the image and set up the spl_image structure */
 	ret = spl_load_fit_image(info, sector, &ctx, node, spl_image);
 	if (ret)
 		return ret;
-
 	/*
 	 * For backward compatibility, we treat the first node that is
 	 * as a U-Boot image, if no OS-type has been declared.
@@ -732,7 +731,6 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 		debug("Image OS is %s\n", genimg_get_os_name(spl_image->os));
 	else if (!IS_ENABLED(CONFIG_SPL_OS_BOOT))
 		spl_image->os = IH_OS_U_BOOT;
-
 	/*
 	 * Booting a next-stage U-Boot may require us to append the FDT.
 	 * We allow this to fail, as the U-Boot image might embed its FDT.
