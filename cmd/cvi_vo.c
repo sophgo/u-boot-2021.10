@@ -186,6 +186,7 @@ static int do_startvo(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 
 	switch (intf) {
 	case VO_INTF_MIPI: {
+		printf("intf:VO_INTF_MIPI(%ld)\n", VO_INTF_MIPI);
 		mipi_tx_set_mode(0);
 		#if PANLE_ADAPTIVITY
 		dsi_panel_init_adaptivity();
@@ -206,6 +207,7 @@ static int do_startvo(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 	break;
 
 	case VO_INTF_I80_HW:
+		printf("intf:VO_INTF_I80_HW(%ld)\n", VO_INTF_I80_HW);
 		intf_type = SCLR_VO_INTF_I80_HW;
 		i80_hw_init(dev, panel_desc.i80_hw_cfg);
 	break;

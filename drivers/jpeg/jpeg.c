@@ -30,6 +30,9 @@ typedef struct v {
 } dec_cfg_t;
 
 #define VC_CLK_EN_REG  0x030020e8
+#define VCSYS_CLK_APB_EN_REG  0x030020f0
+#define JPEG_CLK_APB_EN_REG  0x030020f4
+
 #define mmio_write_32(a, v) writel(v, a)
 #define mmio_read_32(a) readl(a)
 
@@ -124,21 +127,21 @@ int jpeg_decoder(void *bs_addr, void *yuv_addr, int size)
 	//        comp
 	//        {MODE_ENC, 1, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 2, ROTATE_0, MIRROR_NO, 1,
 	//	 0, 3840, 2160, PACK_PLANAR, 0, 0, 0, 0, 40681 },
-		{MODE_DEC, 1, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 4, ROTATE_0, MIRROR_NO, 1,
+		{MODE_DEC, 0, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 4, ROTATE_0, MIRROR_NO, 1,
 		 0,   300,   300,    0,           50, 50, 0, 0, 0x23431},
 	};
 
 	int idx, ret = 0, all = 0;
+	mmio_write_32((void *)VC_CLK_EN_REG, 0xffffffff);
+	mmio_write_32((void *)VCSYS_CLK_APB_EN_REG, 0xffffffff);
+	mmio_write_32((void *)JPEG_CLK_APB_EN_REG, 0xffffffff);
 
 	mmio_write_32((void *)TOP_DDR_ADDR_MODE_REG, (1 << DAMR_REG_VD_REMAP_ADDR_39_32_OFFSET));
 	mmio_write_32((void *)VC_REG_BASE, (mmio_read_32((void *)VC_REG_BASE) | (0x1f)));
-	mmio_write_32((void *)VC_CLK_EN_REG, 0xffffffff);
-
 #ifdef SUPPORT_INTERRUPT
 	request_irq(JPEG_CODEC_INTR_NUM, irq_handler_jpeg_codec, 0, "jpeg int", NULL);
 	BM_DBG_TRACE("irq num = %d\n", JPEG_INTRPT_REQ);
 #endif
-
 	for (idx = 0; idx < sizeof(allCfgs) / sizeof(dec_cfg_t); idx++) {
 		if (allCfgs[idx].mode == MODE_DEC)
 			ret = jpeg_dec(&allCfgs[idx], bs_addr, yuv_addr, size);
@@ -152,6 +155,8 @@ int jpeg_decoder(void *bs_addr, void *yuv_addr, int size)
 			JLOG(NONE, "case %d, success\n", idx);
 	}
 	mmio_write_32((void *)VC_CLK_EN_REG, 0xfffe7fff);
+	mmio_write_32((void *)VCSYS_CLK_APB_EN_REG, 0x7fffffff);
+	mmio_write_32((void *)JPEG_CLK_APB_EN_REG, 0xfffffffc);
 	JLOG(NONE, "jpeg decode %s\n", all ? "failed" : "passed");
 	return all;
 }

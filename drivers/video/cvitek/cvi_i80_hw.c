@@ -144,11 +144,11 @@ static void _fill_disp_timing(struct sclr_disp_timing *timing, const struct sync
 			+ sync_info->vid_active_lines + sync_info->vid_vfp_lines - 1;
 	timing->htotal = sync_info->vid_hsa_pixels + sync_info->vid_hbp_pixels
 			+ sync_info->vid_hline_pixels + sync_info->vid_hfp_pixels - 1;
-	timing->vsync_start = 1;
+	timing->vsync_start = 0;
 	timing->vsync_end = timing->vsync_start + sync_info->vid_vsa_lines - 1;
 	timing->vfde_start = timing->vsync_start + sync_info->vid_vsa_lines + sync_info->vid_vbp_lines;
 	timing->vfde_end = timing->vfde_start + sync_info->vid_active_lines - 1;
-	timing->hsync_start = 1;
+	timing->hsync_start = 0;
 	timing->hsync_end = timing->hsync_start + sync_info->vid_hsa_pixels - 1;
 	timing->hfde_start = timing->hsync_start + sync_info->vid_hsa_pixels + sync_info->vid_hbp_pixels;
 	timing->hfde_end = timing->hfde_start + sync_info->vid_hline_pixels - 1;
@@ -164,31 +164,32 @@ static void _fill_disp_timing(struct sclr_disp_timing *timing, const struct sync
 int hw_mcu_cmd_send(const HW_I80_INSTR_S *instr, int size)
 {
 	int i = 0;
-	unsigned int sw_cmd0, sw_cmd1, sw_cmd2, sw_cmd3;
+	unsigned int sw_cmd0;
 	int cmd_cnt = 0;
 
-	for (i = 0; i < size; i = i + 4) {
+	for (i = 0; i < size; i = i + 1) {
 		cmd_cnt = 0;
 		if (i < size) {
 			cmd_cnt++;
 			sw_cmd0 = (instr[i].data_type << 8) | instr[i].data;
 			i80_set_cmd0(sw_cmd0);
+			udelay(instr[i].delay * 1000);
 		}
-		if ((i + 1) < size) {
-			cmd_cnt++;
-			sw_cmd1 = (instr[i + 1].data_type << 8) | instr[i + 1].data;
-			i80_set_cmd1(sw_cmd1);
-		}
-		if ((i + 2) < size) {
-			cmd_cnt++;
-			sw_cmd2 = (instr[i + 2].data_type << 8) | instr[i + 2].data;
-			i80_set_cmd2(sw_cmd2);
-		}
-		if ((i + 3) < size) {
-			cmd_cnt++;
-			sw_cmd3 = (instr[i + 3].data_type << 8) | instr[i + 3].data;
-			i80_set_cmd3(sw_cmd3);
-		}
+		// if ((i + 1) < size) {
+		// 	cmd_cnt++;
+		// 	sw_cmd1 = (instr[i + 1].data_type << 8) | instr[i + 1].data;
+		// 	i80_set_cmd1(sw_cmd1);
+		// }
+		// if ((i + 2) < size) {
+		// 	cmd_cnt++;
+		// 	sw_cmd2 = (instr[i + 2].data_type << 8) | instr[i + 2].data;
+		// 	i80_set_cmd2(sw_cmd2);
+		// }
+		// if ((i + 3) < size) {
+		// 	cmd_cnt++;
+		// 	sw_cmd3 = (instr[i + 3].data_type << 8) | instr[i + 3].data;
+		// 	i80_set_cmd3(sw_cmd3);
+		// }
 		printf("set cmd cnt [%d]\n",cmd_cnt);
 		i80_set_cmd_cnt(cmd_cnt);
 		i80_trig();
@@ -208,33 +209,38 @@ int i80_hw_init(int dev, const HW_I80_CFG_S *i80_hw_cfg)
 				ctrl_gpios.disp_power_ct_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
 	if (ret < 0) {
 		printf("dm_gpio_set_value(disp_power_ct_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret != -ENOENT)
+			return ret;
 	}
 	ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
 				ctrl_gpios.disp_pwm_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
 	if (ret < 0) {
 		printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret != -ENOENT)
+			return ret;
 	}
 	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
 	if (ret < 0) {
 		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret != -ENOENT)
+			return ret;
 	}
 	mdelay(10);
 	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 1 : 0);
 	if (ret < 0) {
 		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret != -ENOENT)
+			return ret;
 	}
 	mdelay(10);
 	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
 	if (ret < 0) {
 		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret != -ENOENT)
+			return ret;
 	}
 	mdelay(100);
 
@@ -253,10 +259,10 @@ int i80_hw_init(int dev, const HW_I80_CFG_S *i80_hw_cfg)
 
 	if (i80_hw_cfg->mode == VO_MCU_MODE_RGB565) {
 		dphy_dsi_set_pll(pixelclock * 4, 4, 24);
-		vi_sys_set_clk_ctrl2(0x10);
+		vi_sys_set_clk_ctrl2(0x30);
 	} else if (i80_hw_cfg->mode == VO_MCU_MODE_RGB888) {
 		dphy_dsi_set_pll(pixelclock * 6, 4, 24);
-		vi_sys_set_clk_ctrl2(0x18);
+		vi_sys_set_clk_ctrl2(0x38);
 	}
 	//pinmux
 	hw_mcu_cmd_send(i80_hw_cfg->instrs.instr_cmd, i80_hw_cfg->instrs.instr_num);
