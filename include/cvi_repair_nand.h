@@ -1,0 +1,10 @@
+#ifndef CVI_REPAIR_NAND_H
+#define CVI_REPAIR_NAND_H
+
+typedef enum TORTURE_STATUS {
+    CVI_OK,
+    CVI_BAD_BLOCK,
+    CVI_UNKNOW_ERROR
+} TORTURE_STATUS;
+
+#endif /* CVI_REPAIR_NAND_H */

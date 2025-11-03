@@ -47,6 +47,18 @@ struct ep_fifo {
 	uint8_t  res[4092];
 };
 
+struct cvi_usbphy_reg {
+	uint32_t reg000;
+	uint32_t reg004;
+	uint32_t reg008;
+	uint32_t reg00B;
+	uint32_t reg010;
+	uint32_t reg014;
+	uint32_t reg018;
+	uint32_t reg01B;
+	uint32_t reg020;
+};
+
 /* USB2.0 OTG Controller register */
 struct cvi_usbotg_reg {
 	/* Core Global Registers */
@@ -171,6 +183,7 @@ struct cvi_usbotg_reg {
 #define PWRONPRGDONE			(0x1<<11)
 #define DCTL_TSTCTL_SHIFT		(4)
 #define DCTL_TSTCTL_MASK		(0x7<<DCTL_TSTCTL_SHIFT)
+#define DCTL_SFTDISCON		(0x1 << 1)
 
 /* CVI_UDC_OTG_DAINT device all endpoint interrupt register */
 #define DAINT_OUT_BIT			(16)

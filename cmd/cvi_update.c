@@ -6,6 +6,7 @@
 #include <serial.h>
 #include <asm/global_data.h>
 #include <linux/delay.h>
+#include <usb/dwc2_udc.h>
 #ifdef CONFIG_NAND_SUPPORT
 #include <nand.h>
 #endif
@@ -619,6 +620,12 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			ret = _storage_update(sd_dl);
 #endif
 		} else if (update_magic == USB_UPDATE_MAGIC) {
+			#ifdef CONFIG_CHECK_USB_PLUG
+			if (cvi_get_chg_plug() != CHG_PLUG_HUB) {
+				printf("usb download but not plug into pc\n");
+				return -1;
+			}
+			#endif
 			run_command("env default -a", 0);
 			usb_pid = in_be32(UBOOT_PID_SRAM_ADDR);
 			usb_pid = bcd2hex4(usb_pid);

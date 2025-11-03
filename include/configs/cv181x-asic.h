@@ -207,27 +207,40 @@
 	#else
 		#define FDT_NO ""
 	#endif
-
 	/* config root */
 	#ifdef CONFIG_NAND_SUPPORT
 		#ifdef CONFIG_SKIP_RAMDISK
-			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
-            #ifdef CONFIG_CMD_BOOT_MODE_NAND
+			#ifdef CONFIG_ROOTFS_RW
+				#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0 rw root=ubi0:ROOTFS rootfstype=ubifs"
+			#else
+				#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
+			#endif
+			#ifdef CONFIG_CMD_BOOT_MODE_NAND
 			    #define ROOTARGSA "ubi.mtd=ROOTFS ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
 			    #define ROOTARGSB "ubi.mtd=ROOTFS_B ubi.block=0,0 root=/dev/ubiblock0_0 rootfstype=squashfs"
-            #endif
+			#endif
 
 		#else
 			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0"
-            #ifdef CONFIG_CMD_BOOT_MODE_NAND
+			#ifdef CONFIG_CMD_BOOT_MODE_NAND
 			    #define ROOTARGSA "ubi.mtd=ROOTFS ubi.block=0,0"
 			    #define ROOTARGSB "ubi.mtd=ROOTFS_B ubi.block=0,0"
-            #endif
+			#endif
 		#endif /* CONFIG_SKIP_RAMDISK */
 	#elif defined(CONFIG_SD_BOOT)
 		#define ROOTARGS "root=" ROOTFS_DEV " rootwait rw"
+	#elif defined(CONFIG_EMMC_SUPPORT)
+		#ifdef CONFIG_ROOTFS_RW
+			#define ROOTARGS "rootfstype=ext4 rootwait rw root=" ROOTFS_DEV
+		#else
+			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+		#endif
 	#else
-		#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+		#ifdef CONFIG_ROOTFS_RW
+			#error "nor flash is not supporte rootfs rw yet"
+		#else
+			#define ROOTARGS "rootfstype=squashfs rootwait ro root=" ROOTFS_DEV
+		#endif
 	#endif
 
 	/* BOOTARGS */

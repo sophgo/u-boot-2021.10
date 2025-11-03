@@ -99,6 +99,7 @@
 
 /* usb */
 #define USB_BASE            0x04340000
+#define USB2_0_PHY_BASE     0x03006000     // usb 2.0 phy
 
 /* ethernet phy */
 #define ETH_PHY_BASE        0x03009000

@@ -13,6 +13,8 @@
 #include "mmio.h"
 
 #define EPHY_EFUSE_VALID_BIT_BASE 0x03050120
+#define EPHY_EFUSE_ECO_BIT_BASE 0x03050108
+#define EFUSE_MARSE_FLAG 0x00000100 // bit 8
 #define EPHY_EFUSE_TXECHORC_FLAG 0x00000100 // bit 8
 #define EPHY_EFUSE_TXITUNE_FLAG 0x00000200 // bit 9
 #define EPHY_EFUSE_TXRXTERM_FLAG 0x00000800 // bit 11
@@ -98,6 +100,17 @@ static void cv182xa_ephy_init(void)
 
 	// Set Double TX Bias Current
 	mmio_write_32(0x03009054, 0x0000);
+
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV181X)
+	if ((mmio_read_32(EPHY_EFUSE_ECO_BIT_BASE) & EFUSE_MARSE_FLAG) ==
+	EFUSE_MARSE_FLAG) {
+		// change clk
+		// rg_eth_pll_loopdiv
+		mmio_write_32(0x03009044, 0x64);
+		// rg_eth_toptest DIV4
+		mmio_write_32(0x0300906c, 0X200);
+	}
+#endif
 
 	// Switch to MII-page16
 	mmio_write_32(0x0300907c, 0x1000);

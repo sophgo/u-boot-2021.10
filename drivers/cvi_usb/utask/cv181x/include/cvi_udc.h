@@ -28,7 +28,7 @@
 #define DEBUG_OUT_EP 0
 #define DEBUG_IN_EP 0
 
-#define PHY0_SLEEP              BIT(5)
+// #define PHY0_SLEEP              BIT(5)
 
 #ifndef CONFIG_SYS_CACHELINE_SIZE
 #define CONFIG_SYS_CACHELINE_SIZE       64

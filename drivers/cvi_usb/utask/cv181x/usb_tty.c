@@ -1365,7 +1365,7 @@ uint32_t plat_cvi_gpio_read(uint32_t mask)
 }
 #endif
 
-#if defined(USB_PHY_DETECTION)
+
 uint8_t usb_vbus_det(void)
 {
 	uint8_t vbus;
@@ -1378,7 +1378,7 @@ uint8_t usb_vbus_det(void)
 
 	return vbus;
 }
-#endif
+
 
 void acm_patch_id(unsigned short vid, unsigned short pid)
 {
