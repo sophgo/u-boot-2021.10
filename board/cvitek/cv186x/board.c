@@ -600,11 +600,7 @@ int board_init(void)
 }
 
 #define DTSNAME_MAX_LEN 32
-#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
 #define DEFAULT_DTSNAME "config-cv186ah_wevb_4G"
-#else
-#define DEFAULT_DTSNAME "config-" __stringify(CVICHIP) "_" __stringify(CVIBOARD)
-#endif
 
 void get_dts_type_from_oem(unsigned char *dtsname)
 {
