@@ -58,8 +58,14 @@ static uint32_t bcd2hex4(uint32_t bcd)
 
 int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 {
+#if (defined CONFIG_SUP_LARGE_PART_SIZE) && (defined CONFIG_EMMC_SUPPORT)
+	u64 size = *(u64 *)((uintptr_t)file + 4);
+	u64 offset = *(u64 *)((uintptr_t)file + 12);
+	//uint32_t header_crc = *(uint32_t *)((uintptr_t)file + 28);
+#else
 	uint32_t size = *(uint32_t *)((uintptr_t)file + 4);
 	uint32_t offset = *(uint32_t *)((uintptr_t)file + 8);
+#endif
 #if (defined CONFIG_SPI_FLASH)/* || (defined CONFIG_NAND_SUPPORT)*/
 	uint32_t part_size = *(uint32_t *)((uintptr_t)file + 12);
 #endif
@@ -119,8 +125,13 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 
 	size = size / SECTOR_SIZE;
 	offset = offset / SECTOR_SIZE;
+#if (defined CONFIG_SUP_LARGE_PART_SIZE) && (defined CONFIG_EMMC_SUPPORT)
+	snprintf(cmd, 255, "mmc write %p 0x%llx 0x%llx",
+		 (void *)file + chunk_header_size, offset, size);
+#else
 	snprintf(cmd, 255, "mmc write %p 0x%x 0x%x",
 		 (void *)file + chunk_header_size, offset, size);
+#endif
 #endif
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);

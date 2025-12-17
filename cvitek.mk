@@ -43,6 +43,10 @@ ifeq (${RELEASE}, 1)
 KBUILD_CPPFLAGS += -DRELEASE
 endif
 
+ifeq (${CONFIG_SUP_LARGE_PART_SIZE},y)
+KBUILD_CPPFLAGS += -DCONFIG_SUP_LARGE_PART_SIZE=${CONFIG_SUP_LARGE_PART_SIZE}
+endif
+
 cvichip = $(shell echo $(CHIP) | tr a-z A-Z)
 cviboard = $(shell echo $(CVIBOARD) | tr a-z A-Z)
 KBUILD_CPPFLAGS += -DCVICHIP=${CHIP}
