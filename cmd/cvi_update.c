@@ -430,7 +430,7 @@ static int _uart_update(void)
 	ret = run_command(cmd, 0);
 #elif defined(CONFIG_SPI_FLASH)
 	ret = run_command("sf probe", 0);
-	snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR)
+	snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR);
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);
 #else
