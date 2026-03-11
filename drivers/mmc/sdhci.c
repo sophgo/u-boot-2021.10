@@ -241,7 +241,7 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 {
 #endif
 	struct sdhci_host *host = mmc->priv;
-	unsigned int stat = 0;
+	unsigned int stat = 0, is_tuning = 0;
 	int ret = 0;
 	int trans_bytes = 0, is_aligned = 1;
 	u32 mask, flags, mode;
@@ -264,7 +264,14 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 	      cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK_HS200) && !data))
 		mask &= ~SDHCI_DATA_INHIBIT;
 
+	if ((cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK ||
+	      cmd->cmdidx == MMC_CMD_SEND_TUNING_BLOCK_HS200))
+		is_tuning = 1;
+
 	while (sdhci_readl(host, SDHCI_PRESENT_STATE) & mask) {
+		if (is_tuning && time > 10)
+			return -ECOMM;
+
 		if (time >= cmd_timeout) {
 			printf("%s: MMC: %d busy ", __func__, mmc_dev);
 			if (2 * cmd_timeout <= SDHCI_CMD_MAX_TIMEOUT) {

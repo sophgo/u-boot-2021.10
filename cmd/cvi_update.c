@@ -253,6 +253,8 @@ static int _storage_update(enum storage_type_e type)
 
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		WATCHDOG_RESET();
+		if(type == ota_dl && !strncmp(imgs[i], "gpt.img",3))
+			continue;
 		snprintf(cmd, 255, "%sload %s %p %s 0x%x 0;", fs_type_Storage, strStorage,
 				(void *)HEADER_ADDR, imgs[i], HEADER_SIZE);
 		pr_debug("%s\n", cmd);
