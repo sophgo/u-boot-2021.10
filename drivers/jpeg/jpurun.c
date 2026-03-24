@@ -454,7 +454,7 @@ int jpeg_decode_helper(DecConfigParam *param)
 			outputInfo.decodingSuccess = 0;
 			JPU_SWReset();
 		}
-
+		flush_dcache_all();
 		// Start decoding a frame.
 		ret = JPU_DecStartOneFrame(handle, &decParam);
 
@@ -653,7 +653,7 @@ JPU_END_OF_STREAM:
 
 			ppIdx = (ppIdx - regFrameBufCount + 1) % MAX_ROT_BUF_NUM;
 		}
-
+			invalidate_dcache_all();
 		copy_to_dest_addr((Uint8 *)frameBuf[saveIdx].bufY, pRefYuvBuf,
 				  dispWidth, dispHeight, framebufStrideY, framebufStrideC,
 				  (int)decOP.chroma_interleave, framebufFormat, 0, decOP.packedFormat);

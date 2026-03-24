@@ -260,15 +260,19 @@ static int _storage_update(enum storage_type_e type)
 		run_command(cmd, 0);
 		//Write the backup fip.
 		snprintf(cmd, 255, "mmc write %p 0xE00 0xE00;", (void *)HEADER_ADDR);
-		run_command(cmd, 0);
+		ret = run_command(cmd, 0);
 		printf("Program fip.bin done\n");
 		// Switch to user partition
-		ret = run_command("mmc dev 0 0", 0);
+		ret |= run_command("mmc dev 0 0", 0);
 		if (ret) {
 			printf("MMC0:0 user part swicth fail\n");
 			return ret;
 		}
 #endif
+		if (ret == 0)
+			SET_DL_COMPLETE();
+		else
+			return ret;
 	}
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
@@ -282,8 +286,6 @@ static int _storage_update(enum storage_type_e type)
 		if (_checkHeader(imgs[i], strStorage))
 			continue;
 	}
-	if (ret == 0)
-		SET_DL_COMPLETE();
 	return 0;
 }
 

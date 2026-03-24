@@ -1,7 +1,7 @@
 #ifndef _SOPHON_SPACC_H_
 #define _SOPHON_SPACC_H_
 
-#define OPTEE_SMC_CALL_CV_SPACC_EXEC 0x0300000A
+#define OPTEE_SMC_CALL_CV_SPACC_EXEC 0x0300000F
 #include <common.h>
 #include <log.h>
 #include <linux/errno.h>
@@ -33,7 +33,7 @@ typedef enum SPACC_KEY_SIZE {
 
 typedef enum SPACC_ACTION {
 	SPACC_ACTION_ENCRYPTION,
-	SPACC_ACTION_DECRYPT,
+	SPACC_ACTION_DECRYPTION,
 } SPACC_ACTION_E;
 
 typedef enum SPACC_KEY_SOURCE {

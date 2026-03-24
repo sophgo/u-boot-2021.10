@@ -178,6 +178,12 @@ static struct spi_nand_driver spi_nand_driver_gsto = {
 	.write_enable = spi_general_write_enable,
 };
 
+static struct spi_nand_driver spi_nand_driver_zbit = {
+	.wait_ready = spi_general_wait_ready,
+	.write_enable = spi_general_write_enable,
+	.qe_enable = spi_nand_qe_enable,
+};
+
 /*****************************************************************************/
 #define SPI_NAND_ID_TAB_VER		"1.3"
 
@@ -363,6 +369,31 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 	{
 		.name	   = "F50D1G41",
 		.id	   = {0xc8, 0x11},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_esmt,
+		.flags = FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_46MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
+	/* ESMT F50L1G41LC-2P 1Gbit */
+	{
+		.name	   = "F50L1G41LC-2P",
+		.id	   = {0x8c, 0x2c},
 		.id_len    = 2,
 		.chipsize  = _128M,
 		.erasesize = _128K,
@@ -1191,6 +1222,30 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	{
+		.name      = "XT26G01F",
+		.id        = {0x0b, 0x71},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_xtx,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xF0, /* bit 4 & 5 & 6 & 7 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0xF,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	/* XTX XT26G11C 1Gbit */
 	{
 		.name      = "XT26G11C",
@@ -1704,6 +1759,54 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.max_freq = SPI_NAND_FREQ_62MHz,
 		.sample_param = 0x40001000,
 		.xtal_switch = 1,
+	},
+
+	{
+		.name      = "ZB35Q01CY1G",
+		.id        = {0x5E, 0xC1},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_zbit,
+		.flags =  FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+    {
+ 		.name         = "XCSP2AAPK-IT",
+		.id           = { 0x8C, 0xA1 },
+		.id_len       = 2,
+		.chipsize     = _256M,
+		.erasesize    = _128K,
+		.pagesize     = _2K,
+		.oobsize      = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver       = &spi_nand_driver_zbit,
+		.flags        = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT |
+				 FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask           = 1 << 4, /* bit 4 */
+		.ecc_status_offset     = 0xc0, /* Status register */
+		.ecc_status_mask       = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift      = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l                 = 1,
+		.sck_h                 = 1,
+		.max_freq              = SPI_NAND_FREQ_62MHz,
+		.sample_param          = 0x40001000,
+		.xtal_switch           = 1,
 	},
 
 	{	.id_len    = 0,	},

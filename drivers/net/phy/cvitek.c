@@ -327,16 +327,16 @@ static int cv182xa_config(struct phy_device *phydev)
 
 static int cv182xa_parse_status(struct phy_device *phydev)
 {
-	int mii_reg;
+	int mii_anlpar_reg;
 
-	mii_reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMSR);
+	mii_anlpar_reg = phy_read(phydev, MDIO_DEVAD_NONE, MII_LPA);
 
-	if (mii_reg & (BMSR_100FULL | BMSR_100HALF))
+	if (mii_anlpar_reg & (LPA_100FULL | LPA_100HALF))
 		phydev->speed = SPEED_100;
 	else
 		phydev->speed = SPEED_10;
 
-	if (mii_reg & (BMSR_10FULL | BMSR_100FULL))
+	if (mii_anlpar_reg & (LPA_100FULL | LPA_10FULL))
 		phydev->duplex = DUPLEX_FULL;
 	else
 		phydev->duplex = DUPLEX_HALF;
