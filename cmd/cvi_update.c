@@ -401,7 +401,11 @@ static int _storage_update(enum storage_type_e type)
 		ret = run_command(cmd, 0);
 		printf("Program fip.bin done\n");
 		// Switch to user partition
-		run_command("mmc dev 0 0", 0);
+		ret |= run_command("mmc dev 0 0", 0);
+		if (ret) {
+			printf("MMC0:0 user part swicth fail\n");
+			return ret;
+		}
 #endif
 		if (ret == 0)
 			SET_DL_COMPLETE();

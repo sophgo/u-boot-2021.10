@@ -86,6 +86,9 @@
 //Clock Divider Factor[20:16],actual frequency = 1188M / Clock Divider Factor
 #define BIT_CLK_DIV_FACT_16          BIT(16)
 #define BIT_CLK_DIV_FACT_17          BIT(17)
+#define BIT_CLK_DIV_FACT_18          BIT(18)
+#define BIT_CLK_DIV_FACT_19          BIT(19)
+#define BIT_CLK_DIV_FACT_20          BIT(20)
 
 /* rst */
 #define REG_TOP_SOFT_RST        0x3000
