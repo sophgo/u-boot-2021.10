@@ -26,7 +26,7 @@ static int fixed_regulator_of_to_plat(struct udevice *dev)
 
 	uc_pdata->type = REGULATOR_TYPE_FIXED;
 
-	return regulator_common_of_to_plat(dev, dev_pdata, "gpio");
+	return regulator_common_of_to_plat(dev, dev_pdata, "gpios");
 }
 
 static int fixed_regulator_get_value(struct udevice *dev)
