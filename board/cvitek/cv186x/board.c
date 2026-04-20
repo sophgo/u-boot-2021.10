@@ -29,6 +29,7 @@
 #include <serial.h>
 #include <part.h>
 #include <fat.h>
+#include <power/regulator.h>
 
 #ifdef CONFIG_VIDEO_SOPH
 #include <video_soph.h>
@@ -436,6 +437,9 @@ void sm9v1_board_init(void)
 	//GPIO
 	PINMUX_CONFIG(UART1_TX, GPIO83, G11);
 	PINMUX_CONFIG(UART1_RX, GPIO84, G11);
+
+	// regulator init
+	regulators_enable_boot_on(0);
 }
 
 /*sm9v2 pinmux init*/

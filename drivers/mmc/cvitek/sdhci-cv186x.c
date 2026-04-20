@@ -111,6 +111,7 @@ static void cvi_mmc_set_tap(struct sdhci_host *host, u16 tap)
 {
 	pr_debug("%s %d\n", __func__, tap);
 	// Set sd_clk_en(0x2c[2]) to 0
+	mdelay(1);
 	sdhci_writew(host,
 		     sdhci_readw(host, SDHCI_CLOCK_CONTROL) & (~(BIT(2))),
 		     SDHCI_CLOCK_CONTROL);
@@ -121,7 +122,7 @@ static void cvi_mmc_set_tap(struct sdhci_host *host, u16 tap)
 	sdhci_writel(host, 0, CVI_SDHCI_PHY_CONFIG);
 	// Set sd_clk_en(0x2c[2]) to 1
 	sdhci_writew(host, sdhci_readw(host, SDHCI_CLOCK_CONTROL) | BIT(2), SDHCI_CLOCK_CONTROL);
-	mdelay(1);
+	mdelay(3);
 }
 
 static inline uint32_t CHECK_MASK_BIT(void *_mask, uint32_t bit)
@@ -318,13 +319,15 @@ retry_tuning:
 		}
 	}
 	rate = max_window_size * 100 / max_lead_lag_size;
-	pr_debug("mmc%d : MaxWindow[Idx, Width]:[%d,%u]\n",
+	printf("mmc%d : MaxWindow[Idx, Width]:[%d,%u]\n",
 		 host->index, max_window_idx, max_window_size);
 	pr_debug("mmc%d : Tuning Tap: %d\n", host->index, final_tap);
 	pr_debug("mmc%d : RX_LeadLag[Idx, Width]:[%d,%u]\n",
 		 host->index, max_lead_lag_idx, max_lead_lag_size);
 	pr_debug("mmc%d : rate = %d\n", host->index, rate);
 
+	if (final_tap < 0 || final_tap > 127)
+		final_tap = 0;
 	cvi_mmc_set_tap(host, final_tap);
 	cvi_host->final_tap = final_tap;
 	ret = mmc_send_tuning(host->mmc, opcode, NULL);

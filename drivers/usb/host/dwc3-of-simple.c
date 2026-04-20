@@ -164,9 +164,9 @@ static int dwc3_of_simple_probe(struct udevice *dev)
 		writel(value, reg_phy_tune_ctrl_reg + USB_PHY_TUNE_CTRL_REG1);
 
 		if (gpio_request_by_name(dev, "vbus-gpio", 0, &vbus, GPIOD_IS_OUT))
-			return -EINVAL;
-
-		dm_gpio_set_value(&vbus, 1);
+			pr_debug("not configure usb vbus-gpio\n");
+		else
+			dm_gpio_set_value(&vbus, 1);
 	}
 
 	return 0;
