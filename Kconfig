@@ -68,6 +68,13 @@ config GCC_VERSION
 config CC_IS_CLANG
 	def_bool $(success,$(CC) --version | head -n 1 | grep -q clang)
 
+config CHECK_USB_PLUG
+	bool "Check USB plug status"
+	default n
+	help
+	  Enable checking USB plug status before performing update.
+	  If not plugged to PC, will boot kernel from flash.
+
 config CLANG_VERSION
 	int
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))

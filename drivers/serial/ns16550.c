@@ -215,6 +215,9 @@ int ns16550_calc_divisor(struct ns16550 *port, int clock, int baudrate)
 
 static void ns16550_setbrg(struct ns16550 *com_port, int baud_divisor)
 {
+#ifdef ENABLE_UART_DL
+	return;
+#endif
 	/* to keep serial format, read lcr before writing BKSE */
 	int lcr_val = serial_in(&com_port->lcr) & ~UART_LCR_BKSE;
 

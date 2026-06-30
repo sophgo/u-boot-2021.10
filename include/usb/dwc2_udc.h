@@ -13,6 +13,16 @@
 #define PHY0_SLEEP              (1 << 5)
 #define DWC2_MAX_HW_ENDPOINTS	16
 
+enum chg_plug_type {
+	CHG_PLUG_NONE = 0,
+	CHG_PLUG_HUB,
+	CHG_PLUG_ADAPTER,
+};
+
+void cvi_usb_set_role(int is_host);
+uint8_t usb_vbus_det(void);
+enum chg_plug_type cvi_get_chg_plug(void);
+
 struct dwc2_plat_otg_data {
 	void		*priv;
 	ofnode		phy_of_node;

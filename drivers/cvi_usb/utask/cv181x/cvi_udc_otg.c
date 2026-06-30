@@ -32,6 +32,9 @@
 #include "include/cvi_udc_otg_priv.h"
 #include "include/cvi_udc.h"
 #include "include/dps.h"
+#include <usb/dwc2_udc.h>
+#include <cvitek/mmio.h>
+#include "include/platform_def.h"
 
 /***********************************************************/
 #define DRIVER_VERSION "15 March 2009"
@@ -1114,4 +1117,143 @@ int cviusb_gadget_handle_interrupts(int index)
 	if (intr_status & gintmsk)
 		return cvi_udc_irq(1, (void *)the_controller);
 	return 0;
+}
+
+void cvi_usb_set_role(int is_host)
+{
+	if (is_host) {
+		/* host */
+		cvi_uncached_write32((cvi_uncached_read32((uint32_t *)REG_TOP_USB_PHY_CTRL) & ~0x0000C0) | 0x40,
+				     (uint32_t *)REG_TOP_USB_PHY_CTRL);
+	} else {
+		/* device */
+		cvi_uncached_write32((cvi_uncached_read32((uint32_t *)REG_TOP_USB_PHY_CTRL) & ~0x0000C0) | 0xC0,
+				     (uint32_t *)REG_TOP_USB_PHY_CTRL);
+	}
+}
+
+#define REG014_UTMI_RESET		BIT(8)
+#define REG014_DMPULLDOWN		BIT(7)
+#define REG014_DPPULLDOWN		BIT(6)
+#define REG014_TERMSEL			BIT(5)
+#define REG014_XCVRSEL_MASK		(0x3 << 3)
+#define REG014_XCVRSEL_SHIFT	3
+#define REG014_OPMODE_MASK		(0x3 << 1)
+#define REG014_OPMODE_SHIFT		1
+#define REG014_UTMI_OVERRIDE	BIT(0)
+
+#define REG020_DP_DET			BIT(17)
+#define REG020_CHG_DET			BIT(16)
+#define REG020_VDM_SRC_EN		BIT(5)
+#define REG020_VDP_SRC_EN		BIT(4)
+#define REG020_DM_CMP_EN		BIT(3)
+#define REG020_DP_CMP_EN		BIT(2)
+#define REG020_DCD_EN			BIT(1)
+#define REG020_BC_EN			BIT(0)
+
+#define TDCD_TIMEOUT_MAX	900	//ms
+#define TDCD_TIMEOUT_MIN	300	//ms
+#define TDCD_DBNC		10	//ms
+#define TVDMSRC_EN		20	//ms
+#define TVDPSRC_ON		40	//ms
+#define TVDMSRC_ON		40	//ms
+
+static struct cvi_usbotg_reg *reg;
+static struct cvi_usbphy_reg *phy_reg;
+
+static int cdp_det(void)
+{
+	int cnt = 0;
+	int det = 0;
+
+	/* 1. Enable bc */
+	cvi_uncached_write32(REG020_BC_EN | REG020_VDM_SRC_EN | REG020_DP_CMP_EN, &phy_reg->reg020);
+	mdelay(1);
+	/* 2. Dp det in 40ms */
+	while (cnt++ < TVDMSRC_ON) {
+		if ((cvi_uncached_read32(&phy_reg->reg020) & REG020_DP_DET))
+			det = 1;
+		/* 5ms for 2nd detection. */
+		if (!det && cnt > 5)
+			break;
+		mdelay(1);
+	}
+	/* 3. Disable bc. */
+	cvi_uncached_write32(0, &phy_reg->reg020);
+
+	return !det;
+}
+
+static int chg_det(void)
+{
+	int cnt = 0;
+	int det = 0;
+	uint32_t regval;
+
+	if (!phy_reg) {
+		// printf("usb phy 2 reg is null in %s\n", __func__);
+		phy_reg = (struct cvi_usbphy_reg *)USB2_0_PHY_BASE;	// usb 2.0 phy
+	}
+
+	/* 1. Enable bc */
+	cvi_uncached_write32(REG020_BC_EN | REG020_VDP_SRC_EN | REG020_DM_CMP_EN, &phy_reg->reg020);
+	/* need 2ms delay to avoid the unstable value on DM CMP. */
+	mdelay(2);
+	/* 2. Dm det in 40ms */
+	while (cnt++ < TVDPSRC_ON) {
+		regval = cvi_uncached_read32(&phy_reg->reg020);
+		if (regval & REG020_CHG_DET)
+			det = 1;
+		if (!det && cnt > TVDMSRC_EN)
+			break;
+		mdelay(2);
+	}
+	/* 3. Disable bc. */
+	cvi_uncached_write32(0, &phy_reg->reg020);
+
+	return det;
+}
+
+enum chg_plug_type cvi_get_chg_plug(void)
+{
+	uint32_t regval;
+	enum chg_plug_type chg_plug = CHG_PLUG_NONE;
+
+	if (!reg) {
+		// printf("usb reg is null in %s\n", __func__);
+		reg = (struct cvi_usbotg_reg *)USB_BASE;
+	}
+
+	cvi_usb_set_role(0);
+	mdelay(4);
+
+	/* Disconnect the data line. */
+	regval = cvi_uncached_read32(&reg->dctl) | DCTL_SFTDISCON;
+	cvi_uncached_write32(regval, &reg->dctl);
+
+	mdelay(TDCD_TIMEOUT_MIN);
+
+	if (!usb_vbus_det())
+		return chg_plug;
+
+	//if (!dcd_det())
+	//return chg_plug;
+
+	/* Run chgdet */
+	if (chg_det()) {
+		mdelay(5);
+		if (cdp_det())
+			chg_plug = CHG_PLUG_HUB;
+		else
+			chg_plug = CHG_PLUG_ADAPTER;
+	} else {
+		chg_plug = CHG_PLUG_HUB;
+	}
+
+	regval = cvi_uncached_read32(&reg->dctl) & ~DCTL_SFTDISCON;
+	cvi_uncached_write32(regval, &reg->dctl);
+
+	cvi_usb_set_role(1);
+
+	return chg_plug;
 }

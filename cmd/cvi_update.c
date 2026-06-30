@@ -6,6 +6,7 @@
 #include <serial.h>
 #include <asm/global_data.h>
 #include <linux/delay.h>
+#include <usb/dwc2_udc.h>
 #ifdef CONFIG_NAND_SUPPORT
 #include <serial.h>
 #include <asm/global_data.h>
@@ -251,11 +252,19 @@ static int _storage_update(enum storage_type_e type)
 		run_command(cmd, 0);
 		snprintf(cmd, 255, "mmc write %p 0x800 0x800;;",
 			 (void *)HEADER_ADDR);
-		run_command(cmd, 0);
+		ret = run_command(cmd, 0);
 		printf("Program fip.bin done\n");
 		// Switch to user partition
-		run_command("mmc dev 0 0", 0);
+		ret |= run_command("mmc dev 0 0", 0);
+		if (ret){
+			printf("MMC0:0 user part swicth fail\n");
+			return ret;
+		}
 #endif
+		if (ret == 0)
+			SET_DL_COMPLETE();
+		else
+			return ret;
 	}
 	for (int i = 1; i < ARRAY_SIZE(imgs); i++) {
 		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
@@ -269,8 +278,6 @@ static int _storage_update(enum storage_type_e type)
 		if (_checkHeader(imgs[i], strStorage))
 			continue;
 	}
-	if (ret == 0)
-		SET_DL_COMPLETE();
 	return 0;
 }
 
@@ -467,6 +474,12 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			run_command("env default -a", 0);
 			ret = _storage_update(sd_dl);
 		} else if (update_magic == USB_UPDATE_MAGIC) {
+			#ifdef CONFIG_CHECK_USB_PLUG
+			if (cvi_get_chg_plug() != CHG_PLUG_HUB) {
+				printf("usb download but not plug into pc\n");
+				return -1;
+			}
+			#endif
 			run_command("env default -a", 0);
 			usb_pid = in_be32(UBOOT_PID_SRAM_ADDR);
 			usb_pid = bcd2hex4(usb_pid);
