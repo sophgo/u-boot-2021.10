@@ -188,6 +188,8 @@ static int burn_emmc(struct imtb_partition_info_v4 *part_at, char *strStorage,
     u32  block_count32 = 0, update_file_size = 0;
     u32  status = STATUS_OK;
 
+    block_count32 = (part_at->block_count_h << 16) | part_at->block_count;
+
     /* 1. get update file size */
     snprintf(cmd, 255, "fatsize %s %s;", strStorage, part_at->name);
     if (run_command(cmd, 0)) {

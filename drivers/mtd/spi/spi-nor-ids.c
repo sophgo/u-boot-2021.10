@@ -124,6 +124,8 @@ const struct flash_info spi_nor_ids[] = {
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	//{ INFO("KH25L12833FM2I", 0xc22018, 0x0, 64 * 1024, 256,
 	//      SPI_NOR_QUAD_READ | SECT_4K) },
+	{ INFO("ZB25VQ32D", 0x5E4016, 0x0, 64 * 1024, 128,
+                SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("ZB25VQ64B", 0x5E4017, 0x0, 64 * 1024, 128,
 		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ INFO("ZB25VQ128A", 0x5E4018, 0x0, 64 * 1024, 256,

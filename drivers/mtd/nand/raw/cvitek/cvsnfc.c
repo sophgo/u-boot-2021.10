@@ -1091,6 +1091,13 @@ static int spi_nand_read_from_cache(struct cvsnfc_host *host, int col_addr, int 
 	if (DEBUG_READ)
 		pr_info("%s col_addr 0x%x, len %d\n", __func__, col_addr, len);
 
+	/* Check for buffer overflow */
+	if (len > CVSNFC_BUFFER_LEN) {
+		printf("ERROR: %s DMA length %d exceeds buffer size %d\n",
+		       __func__, len, CVSNFC_BUFFER_LEN);
+		return -EINVAL;
+	}
+
 	spi_nand_rw_dma_setup(host, buf, len, 0);
 	cvsfc_write(host, REG_SPI_NAND_TRX_CTRL2, len << TRX_DATA_SIZE_SHIFT | 3 << TRX_CMD_CONT_SIZE_SHIFT);
 
@@ -1419,7 +1426,7 @@ static int read_oob_data(struct mtd_info *mtd, uint8_t *buf, int page)
 		spi->driver->select_die(spi, die_id);
 	}
 
-	cvsnfc_ctrl_ecc(mtd, 0);
+	// cvsnfc_ctrl_ecc(mtd, 0);
 
 	spi_nand_read_page(host, page);
 
@@ -1469,7 +1476,7 @@ int cvsnfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 		spi->driver->select_die(spi, die_id);
 	}
 
-	cvsnfc_ctrl_ecc(mtd, 0);
+	// cvsnfc_ctrl_ecc(mtd, 0);
 
 	spi_nand_read_page(host, page);
 
@@ -1479,10 +1486,18 @@ int cvsnfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 		col_addr |= SPI_NAND_PLANE_BIT_OFFSET;
 	}
 
-	spi_nand_read_from_cache(host, col_addr, mtd->writesize + mtd->oobsize, buf);
+	/* Use internal buffer to avoid overflow, then copy data and oob separately */
+	spi_nand_read_from_cache(host, col_addr, mtd->writesize + mtd->oobsize, host->buffer);
+
+	/* Copy data portion to user buffer */
+	memcpy(buf, host->buffer, mtd->writesize);
+
+	/* Copy OOB portion to chip->oob_poi if required */
+	if (oob_required)
+		memcpy(chip->oob_poi, host->buffer + mtd->writesize, mtd->oobsize);
 
 	if (DEBUG_READ)
-		bbt_dump_buf("read raw page:", buf, mtd->writesize + mtd->oobsize);
+		bbt_dump_buf("read raw page:", host->buffer, mtd->writesize + mtd->oobsize);
 
 	cvsnfc_ctrl_ecc(mtd, 1);
 
@@ -1547,6 +1562,13 @@ static uint8_t spi_nand_prog_load(struct cvsnfc_host *host, const uint8_t *buf,
 			 __func__, size, col_addr, r_col_addr, qe);
 
 	spi_nand_rw_dma_setup(host, buf, size, 1);
+
+	/* Check for buffer overflow */
+	if (size > CVSNFC_BUFFER_LEN) {
+		printf("ERROR: %s DMA size %ld exceeds buffer size %d\n",
+		       __func__, size, CVSNFC_BUFFER_LEN);
+		return -EINVAL;
+	}
 
 	cvsfc_write(host, REG_SPI_NAND_TRX_CTRL2, (size << TRX_DATA_SIZE_SHIFT) | 2 << TRX_CMD_CONT_SIZE_SHIFT);
 

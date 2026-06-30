@@ -46,6 +46,26 @@ struct cvi_sdhci_driver_data {
 	int index;
 };
 
+static void cvi_sdhci_apply_bus_width_caps(struct mmc_config *cfg, int bus_width)
+{
+	cfg->host_caps |= MMC_MODE_1BIT;
+
+	switch (bus_width) {
+	case 8:
+		cfg->host_caps |= MMC_MODE_8BIT;
+		cfg->host_caps |= MMC_MODE_4BIT;
+		break;
+	case 4:
+		cfg->host_caps &= ~MMC_MODE_8BIT;
+		cfg->host_caps |= MMC_MODE_4BIT;
+		break;
+	case 1:
+	default:
+		cfg->host_caps &= ~(MMC_MODE_8BIT | MMC_MODE_4BIT);
+		break;
+	}
+}
+
 static void cvi_emmc_pad_setting(void)
 {
 	mmio_clrsetbits_32(REG_EMMC_CLK_PAD_REG, REG_EMMC_PAD_CLR_MASK, REG_EMMC_CLK_PAD_VALUE << REG_EMMC_PAD_SHIFT);
@@ -606,11 +626,16 @@ static int cvi_sdhci_probe(struct udevice *dev)
 	host->index = drv_data->index;
 	pr_debug("host %p, mmc %p, priv %p\n", host, host->mmc, host->mmc->priv);
 
+	ret = mmc_of_parse(dev, &plat->cfg);
+	if (ret)
+		return ret;
+
 	ret = sdhci_setup_cfg(&plat->cfg, host, cvi_host->mmc_fmax_freq, cvi_host->mmc_fmin_freq);
 
 	if (ret)
 		return ret;
 
+	cvi_sdhci_apply_bus_width_caps(&plat->cfg, host->bus_width);
 
 	if (host->index == MMC_TYPE_MMC) {
 		cvi_emmc_pad_setting();

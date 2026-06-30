@@ -113,9 +113,11 @@ int _prgImage(char *file, uint32_t chunk_header_size, char *file_name)
 		snprintf(cmd, 255, "sf update %p 0x%x 0x%x",
 			 (void *)file + chunk_header_size, offset, size);
 	} else {
-		snprintf(cmd, 255, "sf erase %#x %#x;", offset, part_size);
-		pr_debug("%s\n", cmd);
-		run_command(cmd, 0);
+		if (!env_get("flash_erased")) {
+				snprintf(cmd, 255, "sf erase %#x %#x;", offset, part_size);
+				pr_debug("%s\n", cmd);
+				run_command(cmd, 0);
+		}
 		snprintf(cmd, 255, "sf write %p 0x%x 0x%x",
 			 (void *)file + chunk_header_size, offset, size);
 	}
@@ -453,7 +455,10 @@ static int _usb_update(uint32_t usb_pid)
 #elif defined(CONFIG_SPI_FLASH)
 	ret = run_command("sf probe", 0);
 #ifndef CONFIG_ENABLE_RTT_UPDATE
-	snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR)
+	if (env_get("flash_erased"))
+		snprintf(cmd, 255, "sf write %p ${fip_PART_OFFSET} ${filesize};", (void *)UPDATE_ADDR);
+	else
+		snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR);
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);
 #endif

@@ -31,6 +31,9 @@
 #include <linux/delay.h>
 #include "cvi_update.h"
 #include "include/dps.h"
+#ifdef CONFIG_SPI_FLASH
+#include <spi_flash.h>
+#endif
 
 #ifdef BUILD_ATF
 extern uint16_t cvi_usb_vid;
@@ -154,7 +157,10 @@ struct sram_info {
 
 static struct sram_info sram_info;
 
-static char *_allow_cmds[] = { "setenv", "saveenv", "efusew", "efuser" };
+static char *_allow_cmds[] = { "setenv", "saveenv", "efusew", "efuser", "sf" };
+#ifdef CONFIG_SPI_FLASH
+static uint32_t sf_total_size;
+#endif
 
 #if USB_RW_EFUSE // Mark_to_do
 enum CVI_EFUSE_LOCK_WRITE_E {
@@ -834,10 +840,38 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 					    (uint32_t)254));
 				NOTICE("run command: %s\n", cmd);
 				run_command(cmd, 0);
+				#ifdef CONFIG_SPI_FLASH
+				if (strncmp(cmd, "sf probe", 8) == 0) {
+					char gi_cmd[64];
+
+					snprintf(gi_cmd, sizeof(gi_cmd), "sf getinfo 0x%lx",
+						(unsigned long)HEADER_ADDR);
+					if (run_command(gi_cmd, 0) == 0) {
+						struct spi_flash *sf = (struct spi_flash *)HEADER_ADDR;
+
+						sf_total_size = sf->size;
+						NOTICE("Flash total size: 0x%x (%u MiB)\n",
+								sf_total_size, sf_total_size >> 20);
+					}
+				}
+				#endif
 				break;
 			}
 		}
+#ifdef CONFIG_SPI_FLASH
+               {
+                       uint8_t sf_ack[4];
+
+                       sf_ack[0] = (sf_total_size >> 24) & 0xFF;
+                       sf_ack[1] = (sf_total_size >> 16) & 0xFF;
+                       sf_ack[2] = (sf_total_size >> 8) & 0xFF;
+                       sf_ack[3] = sf_total_size & 0xFF;
+                       sendInReq(length, CVI_USB_PRG_CMD, bulkResetOutReq,
+                                 sf_ack, sizeof(sf_ack));
+               }
+#else
 		sendInReq(length, CVI_USB_PRG_CMD, bulkResetOutReq, NULL, 0);
+#endif
 		break;
 
 #if USB_RW_EFUSE // Mark_to_do

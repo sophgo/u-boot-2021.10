@@ -2289,6 +2289,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	int ret = 0;
 	uint32_t readlen = ops->len;
 	uint32_t oobreadlen = ops->ooblen;
+	int len;
 
 	uint8_t *bufpoi, *oob, *buf;
 	int use_bufpoi;
@@ -2375,6 +2376,13 @@ read_retry:
 					chip->pagebuf = -1;
 				}
 				memcpy(buf, chip->buffers->databuf + col, bytes);
+			}
+
+			/* Transfer OOB data in MTD_OPS_RAW mode */
+			if (oob && ops->mode == MTD_OPS_RAW) {
+				len = min(mtd->oobsize, oobreadlen);
+				oob = nand_transfer_oob(chip, oob, ops, len);
+				oobreadlen -= len;
 			}
 
 			if (chip->options & NAND_NEED_READRDY) {
