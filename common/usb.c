@@ -1056,8 +1056,10 @@ static int usb_prepare_device(struct usb_device *dev, int addr, bool do_read,
 	err = usb_set_address(dev); /* set address */
 
 	if (err < 0) {
-		printf("\n      USB device not accepting new address " \
-			"(error=%lX)\n", dev->status);
+		/* submit failure clears dev->status; printing status alone is misleading */
+		printf("\n      USB device not accepting new address "
+		       "(ret=%d, dev->status=0x%lx, new devnum=%d)\n",
+		       err, (unsigned long)dev->status, addr);
 		return err;
 	}
 

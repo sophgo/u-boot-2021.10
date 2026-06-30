@@ -205,44 +205,51 @@ int i80_hw_init(int dev, const HW_I80_CFG_S *i80_hw_cfg)
 
 	get_disp_ctrl_gpios(&ctrl_gpios);
 
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_power_ct_gpio,
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_power_ct_gpio)) {
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_power_ct_gpio,
 				ctrl_gpios.disp_power_ct_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_power_ct_gpio, deassert) failed: %d", ret);
-		if (ret != -ENOENT)
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_power_ct_gpio, deassert) failed: %d", ret);
 			return ret;
+		}
 	}
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
+
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_pwm_gpio)) {
+		if (ctrl_gpios.has_backlight_pinmux)
+			mmio_write_32(ctrl_gpios.backlight_pinmux_addr,
+				      ctrl_gpios.backlight_pinmux_val);
+
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
 				ctrl_gpios.disp_pwm_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
-		if (ret != -ENOENT)
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
 			return ret;
+		}
 	}
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_reset_gpio)) {
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		if (ret != -ENOENT)
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
 			return ret;
-	}
-	mdelay(10);
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+		}
+		mdelay(10);
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 1 : 0);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		if (ret != -ENOENT)
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
 			return ret;
-	}
-	mdelay(10);
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+		}
+		mdelay(10);
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		if (ret != -ENOENT)
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
 			return ret;
+		}
+		mdelay(100);
 	}
-	mdelay(100);
 
 	sclr_disp_set_mcu_disable(i80_hw_cfg->mode);
 

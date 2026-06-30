@@ -6,8 +6,8 @@
 #ifndef __CVI_DISP_H__
 #define __CVI_DISP_H__
 
-#include <dm.h>
-#include <video.h>
+#include <linux/types.h>
+#include <asm/gpio.h>
 
 #define VO_INTF_CVBS (0x01L << 0)
 #define VO_INTF_YPBPR (0x01L << 1)
@@ -117,5 +117,27 @@ struct sync_info_s {
 	bool            vid_vsa_pos_polarity;
 	bool            vid_hsa_pos_polarity;
 };
+
+struct disp_ctrl_gpios {
+	struct gpio_desc disp_reset_gpio;
+	struct gpio_desc disp_pwm_gpio;
+	struct gpio_desc disp_power_ct_gpio;
+	bool has_backlight_pinmux;
+	u32 backlight_pinmux_addr;
+	u32 backlight_pinmux_val;
+};
+
+int cvi_disp_get_uboot_rotation(void);
+
+static inline bool cvi_disp_is_valid_rotation(int rotation)
+{
+	return rotation == 0 || rotation == 90 || rotation == 180 ||
+	       rotation == 270;
+}
+
+static inline int cvi_disp_sanitize_rotation(int rotation)
+{
+	return cvi_disp_is_valid_rotation(rotation) ? rotation : 0;
+}
 
 #endif // __CVI_DISP_H__

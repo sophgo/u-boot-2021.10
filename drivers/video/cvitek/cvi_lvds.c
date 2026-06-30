@@ -15,6 +15,7 @@
 #include "vip_common.h"
 #include "scaler.h"
 #include "dsi_phy.h"
+#include "mmio.h"
 #include <cvi_lvds.h>
 
 static void _fill_disp_timing(struct sclr_disp_timing *timing, const struct sync_info_s *sync_info)
@@ -94,11 +95,16 @@ int lvds_init(const VO_LVDS_ATTR_S *lvds_cfg)
 	sclr_disp_tgen_enable(true);
 
 	get_disp_ctrl_gpios(&ctrl_gpios);
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_pwm_gpio)) {
+		if (ctrl_gpios.has_backlight_pinmux)
+			mmio_write_32(ctrl_gpios.backlight_pinmux_addr,
+				      ctrl_gpios.backlight_pinmux_val);
+
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
 				ctrl_gpios.disp_pwm_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0)
-		printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
+		if (ret < 0)
+			printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
+	}
 
 	return ret;
 }
-

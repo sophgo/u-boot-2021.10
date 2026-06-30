@@ -11,6 +11,10 @@
 #include <nand.h>
 #endif
 #include "cvi_update.h"
+#ifdef CONFIG_SD_BURNLOGO
+#include <cvitek/logo_data.h>
+#include <cvi_disp.h>
+#endif
 
 #define COMPARE_STRING_LEN 3
 #define SD_UPDATE_MAGIC 0x4D474E32
@@ -179,6 +183,59 @@ static int _checkHeader(char *file, char strStorage[10])
 	return 0;
 }
 
+#ifdef CONFIG_SD_BURNLOGO
+static void update_burnlogo(uint32_t percent)
+{
+	char cmd[255] = { '\0' };
+	uint32_t logo_index;
+	int rotation = cvi_disp_get_uboot_rotation();
+
+	run_command("setvobg 0 0x00000000", 0);
+	/* Convert percentage (0~100) to logo index (0 ~ LOGO_FRAME_SIZE-1) */
+	if (percent >= 100)
+		logo_index = LOGO_FRAME_SIZE - 1;
+	else
+		logo_index = percent * (LOGO_FRAME_SIZE - 1) / 100;
+
+	printf("logo_list[%d] = %p, size = %d\n", logo_index,
+	       logo_list[logo_index], logo_size_list[logo_index]);
+
+	/********************************************************************************************/
+	snprintf(cmd, 255, "cvi_jpeg_dec 0x%p 0x%x 0x80000 %d",
+		 logo_list[logo_index], CVIMMAP_BOOTLOGO_ADDR, rotation);
+	printf("cmd = %s\n", cmd);
+	run_command(cmd, 0);
+
+	/********************************************************************************************/
+	snprintf(cmd, 255, "startvl 0  0x%p 0x%x 0x80000 16 %d",
+		 logo_list[logo_index], CVIMMAP_BOOTLOGO_ADDR, rotation);
+	printf("cmd = %s\n", cmd);
+	run_command(cmd, 0);
+}
+
+static int do_update_burnlogo(struct cmd_tbl *cmdtp, int flag, int argc,
+			      char *const argv[])
+{
+	int percent;
+	char *endp;
+
+	if (argc < 2)
+		return CMD_RET_USAGE;
+
+	percent = simple_strtoul(argv[1], &endp, 10);
+	if (*argv[1] == 0 || *endp != 0)
+		return CMD_RET_USAGE;
+
+	update_burnlogo(percent);
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+	update_burnlogo, 2, 0, do_update_burnlogo,
+	"update_burnlogo <percent> - update boot logo with given percentage\n",
+	"<percent> percentage value (0-100)");
+#endif
+
 static int _storage_update(enum storage_type_e type)
 {
 	int ret = 0;
@@ -189,8 +246,17 @@ static int _storage_update(enum storage_type_e type)
 
 	if (type == sd_dl) {
 		printf("Start SD downloading...\n");
+
+#ifdef CONFIG_SD_BURNLOGO
+#ifndef CONFIG_BOOTLOGO
+		// if not enable bootlogo, should start vo before update logo.
+		run_command(START_VO, 0);
+#endif // CONFIG_BOOTLOGO
+		update_burnlogo(0);
+#endif // CONFIG_SD_BURNLOGO
+
 		// Consider SD card with MBR as default
-#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPI_FLASH)
+#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPI_FLASH) || defined(CONFIG_SD_BOOT)
 		strlcpy(strStorage, "mmc 0:1", 9);
 		sd_index = 0;
 #elif defined(CONFIG_EMMC_SUPPORT)
@@ -206,7 +272,7 @@ static int _storage_update(enum storage_type_e type)
 		if (ret) {
 			// Consider SD card without MBR
 			printf("** Trying use partition 0 (without MBR) **\n");
-#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPI_FLASH)
+#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPI_FLASH) || defined(CONFIG_SD_BOOT)
 			strlcpy(strStorage, "mmc 0:0", 9);
 			sd_index = 0;
 #elif defined(CONFIG_EMMC_SUPPORT)
@@ -281,10 +347,12 @@ static int _storage_update(enum storage_type_e type)
 		ret = run_command(cmd, 0);
 		if (ret) {
 			printf("load %s failed, skip it!\n", imgs[i]);
-			continue;
+		} else {
+			_checkHeader(imgs[i], strStorage);
 		}
-		if (_checkHeader(imgs[i], strStorage))
-			continue;
+#ifdef CONFIG_SD_BURNLOGO
+		update_burnlogo((i + 1) * 100 / ARRAY_SIZE(imgs));
+#endif // CONFIG_SD_BURNLOGO
 	}
 	return 0;
 }

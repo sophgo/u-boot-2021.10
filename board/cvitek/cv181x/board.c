@@ -22,6 +22,7 @@
 #include "cv181x_pinlist_swconfig.h"
 #include <linux/delay.h>
 #include <bootstage.h>
+#include <cvitek/cvi_efuse.h>
 
 #if defined(__riscv)
 #include <asm/csr.h>
@@ -244,6 +245,11 @@ int board_init(void)
 */
 	pinmux_config(PINMUX_SDIO1);
 	cvi_board_init();
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_EFUSE_ENABLE_FASTBOOT)
+	CVI_EFUSE_EnableFastBoot();
+#endif
+
 	return 0;
 }
 

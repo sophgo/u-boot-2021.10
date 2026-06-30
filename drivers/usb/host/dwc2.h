@@ -735,6 +735,11 @@ struct dwc2_core_regs {
 #define DWC2_PCGCCTL_DEEP_SLEEP_OFFSET			7
 #define DWC2_SNPSID_DEVID_VER_2xx			(0x4f542 << 12)
 #define DWC2_SNPSID_DEVID_VER_3xx			(0x4f543 << 12)
+/*
+ * Newer DWC2 cores report 0x4f544xxxx (4xx). Linux accepts a wider set of
+ * IDs; for CV18xx/CV184x silicon we see 4xx in the field.
+ */
+#define DWC2_SNPSID_DEVID_VER_4xx			(0x4f544 << 12)
 #define DWC2_SNPSID_DEVID_MASK				(0xfffff << 12)
 #define DWC2_SNPSID_DEVID_OFFSET			12
 
@@ -786,5 +791,14 @@ struct dwc2_core_regs {
 #undef CONFIG_DWC2_THR_CTL			/* Threshold control */
 #define CONFIG_DWC2_TX_THR_LENGTH		64
 #undef CONFIG_DWC2_IC_USB_CAP			/* IC Cap */
+
+/* Data FIFO access for PIO/slave mode: base + 0x1000 + chan * 0x1000 */
+#define DWC2_DFIFO_OFFSET(ch)		(0x1000 + (ch) * 0x1000)
+
+/* Host-mode GRXSTSP Packet Status values */
+#define DWC2_GRXSTS_PKTSTS_IN_DATA	0x2
+#define DWC2_GRXSTS_PKTSTS_IN_COMPLETE	0x3
+#define DWC2_GRXSTS_PKTSTS_DT_ERROR	0x5
+#define DWC2_GRXSTS_PKTSTS_CH_HALTED	0x7
 
 #endif	/* __DWC2_H__ */

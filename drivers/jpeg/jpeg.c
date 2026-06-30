@@ -121,13 +121,13 @@ int jpeg_dec(dec_cfg_t *cfg, void *bs_addr, void *yuv_addr, int size)
 	return 1 - ret;
 }
 
-int jpeg_decoder(void *bs_addr, void *yuv_addr, int size)
+int jpeg_decoder(void *bs_addr, void *yuv_addr, int size, int rotation)
 {
 	dec_cfg_t allCfgs[] = {
 	//        comp
 	//        {MODE_ENC, 1, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 2, ROTATE_0, MIRROR_NO, 1,
 	//	 0, 3840, 2160, PACK_PLANAR, 0, 0, 0, 0, 40681 },
-		{MODE_DEC, 0, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 4, ROTATE_0, MIRROR_NO, 1,
+		{MODE_DEC, 0, PACK_PLANAR, 0, PARTIAL_MODE_DISABLE, 4, rotation, MIRROR_NO, 1,
 		 0,   300,   300,    0,           50, 50, 0, 0, 0x23431},
 	};
 

@@ -4,12 +4,16 @@
 #include "jpuconfig.h"
 #include "jdi.h"
 
+#define CVI_JPG_DEBUG 0
+
+#if CVI_JPG_DEBUG
 #define CVI_JPG_DBG(msg, ...) \
-	do {\
-		if (1) {\
-			printf("[DBG] %s = %d, " msg, __func__, __LINE__, ##__VA_ARGS__);\
-		} \
+	do { \
+		printf("[DBG] %s = %d, " msg, __func__, __LINE__, ##__VA_ARGS__); \
 	} while (0)
+#else
+#define CVI_JPG_DBG(msg, ...) do { } while (0)
+#endif
 
 #define ALIGN_X(IN, ALIGN)     (((IN) + (ALIGN) - 1) / (ALIGN) * (ALIGN))
 #define ALIGN_32

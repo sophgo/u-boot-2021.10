@@ -875,6 +875,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 				dw_write(priv, DW_SPI_DR, *(u16 *)out_buf);
 			} else {
 				dw_write(priv, DW_SPI_DR, *(u32 *)out_buf);
+				*(u32 *)out_buf = dw_swap(*(u32 *)out_buf, 4);
 			}
 			len -= data_width;
 			out_buf += data_width;
@@ -911,6 +912,7 @@ int dw_spi_write_then_read(struct spi_slave *slave, const struct spi_mem_op *op)
 					dw_write(priv, DW_SPI_DR, *(u16 *)out_buf);
 				} else {
 					dw_write(priv, DW_SPI_DR, *(u32 *)out_buf);
+					*(u32 *)out_buf = dw_swap(*(u32 *)out_buf, 4);
 				}
 				len -= data_width;
 				out_buf += data_width;
@@ -1025,8 +1027,10 @@ int dw_spinor_dma_transfer(struct spi_slave *slave, const struct spi_mem_op *op)
 		while (room) {
 			if (priv->n_bytes == 1)
 				dw_write(priv, DW_SPI_DR, *buf);
-			else
+			else {
 				dw_write(priv, DW_SPI_DR, *(u32 *)buf);
+				*(u32 *)buf = dw_swap(*(u32 *)buf, 4);
+			}
 
 			buf += priv->n_bytes;
 			room -= 1;
@@ -1048,6 +1052,18 @@ int dw_spinor_dma_transfer(struct spi_slave *slave, const struct spi_mem_op *op)
 
 	if (op->data.dir == SPI_MEM_DATA_IN)
 		ret = dma_start_receive(DMA_SPI0);
+
+	/* Swap remaining data after DMA transfer for write operation */
+	if (op->data.dir == SPI_MEM_DATA_OUT && priv->n_bytes == 4) {
+		u8 *dma_buf = (u8 *)op->data.buf.out + PRE_FILL_SIZE;
+		u32 dma_len = op->data.nbytes - PRE_FILL_SIZE;
+		u32 i;
+		for (i = 0; i < dma_len / 4; i++) {
+			u32 *p = (u32 *)dma_buf;
+			*p = dw_swap(*p, 4);
+			dma_buf += 4;
+		}
+	}
 
 	return ret;
 }

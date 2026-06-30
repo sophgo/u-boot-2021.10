@@ -2,6 +2,7 @@
 #define _CVI_SCL_H_
 
 #include <asm/gpio.h>
+#include <cvi_disp.h>
 
 #define SCL_INTR_SCL_NUM 139
 #define SCL_MAX_INST 4
@@ -223,13 +224,6 @@ enum sclr_disp_pat_type {
 	SCL_PAT_TYPE_SNOW,
 	SCL_PAT_TYPE_OFF,
 	SCL_PAT_TYPE_MAX
-};
-
-struct disp_ctrl_gpios {
-	struct gpio_desc disp_reset_gpio;
-	struct gpio_desc disp_pwm_gpio;
-	struct gpio_desc disp_power_ct_gpio;
-
 };
 
 struct sclr_disp_cfg {

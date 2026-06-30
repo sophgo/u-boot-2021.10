@@ -46,7 +46,7 @@ cat ${path} |sed -nr 's/^#define (CONFIG_[A-Za-z0-9_]*).*/\1/p' |sort |uniq \
 comm -23 ${configs} ${whitelist} > ${suspects}
 
 echo > ${sep}
-find ${srctree} -name "Kconfig*" -exec cat '{}' ${sep} ';' | sed -nE \
+find -L ${srctree} -name "Kconfig*" -exec cat '{}' ${sep} ';' | sed -nE \
 	-e 's/^[[:blank:]]*config[[:blank:]]*([A-Za-z0-9_]*).*$/CONFIG_\1/p' \
 	-e 's/^[[:blank:]]*menuconfig ([A-Za-z0-9_]*).*$/CONFIG_\1/p' \
 	| sort |uniq > ${ok}

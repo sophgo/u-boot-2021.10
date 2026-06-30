@@ -27,7 +27,10 @@ struct cvi_vo_priv {
 	phys_addr_t regs_dphy;
 	phys_addr_t regs_vo_mac;
 	struct disp_ctrl_gpios ctrl_gpios;
+	int uboot_rotation;
 };
+
+static int g_uboot_rotation;
 
 static int cvi_vo_bind(struct udevice *dev)
 {
@@ -77,6 +80,7 @@ static int cvi_vo_probe(struct udevice *dev)
 	//struct video_uc_platdata *plat = dev_get_uclass_platdata(dev);
 	//const void *blob = gd->fdt_blob;
 	struct cvi_vo_priv *priv = dev_get_priv(dev);
+	u32 backlight_pinmux[2];
 	int ret = 0;
 
 	debug("%s: start\n", __func__);
@@ -109,6 +113,7 @@ static int cvi_vo_probe(struct udevice *dev)
 		if (ret != -ENOENT)
 			return ret;
 	}
+
 	ret = gpio_request_by_name(dev, "power-ct-gpio", 0, &priv->ctrl_gpios.disp_power_ct_gpio,
 				   GPIOD_IS_OUT | GPIOD_IS_OUT_ACTIVE);
 	if (ret) {
@@ -116,11 +121,33 @@ static int cvi_vo_probe(struct udevice *dev)
 		if (ret != -ENOENT)
 			return ret;
 	}
+
+	priv->ctrl_gpios.has_backlight_pinmux = false;
+	priv->uboot_rotation = 0;
+	ret = dev_read_u32_array(dev, "backlight-pinmux", backlight_pinmux,
+				 ARRAY_SIZE(backlight_pinmux));
+	if (!ret) {
+		priv->ctrl_gpios.has_backlight_pinmux = true;
+		priv->ctrl_gpios.backlight_pinmux_addr = backlight_pinmux[0];
+		priv->ctrl_gpios.backlight_pinmux_val = backlight_pinmux[1];
+		debug("%s: backlight-pinmux addr=0x%x val=0x%x\n", __func__,
+		      priv->ctrl_gpios.backlight_pinmux_addr,
+		      priv->ctrl_gpios.backlight_pinmux_val);
+	} else if (ret != -ENOENT) {
+		printf("%s: invalid backlight-pinmux property: ret=%d\n",
+		       __func__, ret);
+		return ret;
+	}
+
+	priv->uboot_rotation = cvi_disp_sanitize_rotation(
+		dev_read_u32_default(dev, "uboot-rotation", 0));
+	g_uboot_rotation = priv->uboot_rotation;
+
 	set_disp_ctrl_gpios(&priv->ctrl_gpios);
 
 	video_set_flush_dcache(dev, 1);
 
-	return ret;
+	return 0;
 }
 
 static const struct udevice_id cvi_vo_ids[] = {
@@ -130,6 +157,11 @@ static const struct udevice_id cvi_vo_ids[] = {
 
 static const struct video_ops cvi_vo_ops = {
 };
+
+int cvi_disp_get_uboot_rotation(void)
+{
+	return g_uboot_rotation;
+}
 
 U_BOOT_DRIVER(cvi_vo) = {
 	.name	= "vo",

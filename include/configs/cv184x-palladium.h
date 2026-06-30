@@ -17,7 +17,7 @@
 /* partition definitions header which is created by mkcvipart.py */
 /* please do not modify header manually */
 #include "cvipart.h"
-#include "cvi_panels/cvi_panel_diffs.h"
+#include "cvi_panel_diffs.h"
 
 // defined in this .h
 #undef CONFIG_ENV_OFFSET

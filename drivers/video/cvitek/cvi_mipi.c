@@ -15,6 +15,7 @@
 #include "vip_common.h"
 #include "scaler.h"
 #include "dsi_phy.h"
+#include "mmio.h"
 #include <cvi_mipi.h>
 
 /* cmd_mode: cmd_mode
@@ -84,7 +85,7 @@ static void _cal_htt_extra(struct combo_dev_cfg_s *dev_cfg, u8 lane_num, u8 bits
 
 int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 {
-	int ret, i;
+	int ret = 0, i;
 	bool data_en[LANE_MAX_NUM] = {false, false, false, false, false};
 	struct sclr_disp_timing timing;
 	enum sclr_dsi_fmt dsi_fmt;
@@ -148,39 +149,51 @@ int mipi_tx_set_combo_dev_cfg(const struct combo_dev_cfg_s *dev_cfg)
 
 	get_disp_ctrl_gpios(&ctrl_gpios);
 
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_power_ct_gpio,
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_power_ct_gpio)) {
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_power_ct_gpio,
 				ctrl_gpios.disp_power_ct_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_power_ct_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_power_ct_gpio, deassert) failed: %d", ret);
+			return ret;
+		}
 	}
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
+
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_pwm_gpio)) {
+		if (ctrl_gpios.has_backlight_pinmux)
+			mmio_write_32(ctrl_gpios.backlight_pinmux_addr,
+				      ctrl_gpios.backlight_pinmux_val);
+
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_pwm_gpio,
 				ctrl_gpios.disp_pwm_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_pwm_gpio, deassert) failed: %d", ret);
+			return ret;
+		}
 	}
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+
+	if (dm_gpio_is_valid(&ctrl_gpios.disp_reset_gpio)) {
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
-	}
-	mdelay(10);
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
+			return ret;
+		}
+		mdelay(10);
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 1 : 0);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
-	}
-	mdelay(10);
-	ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
+			return ret;
+		}
+		mdelay(10);
+		ret = dm_gpio_set_value(&ctrl_gpios.disp_reset_gpio,
 				ctrl_gpios.disp_reset_gpio.flags & GPIOD_ACTIVE_LOW ? 0 : 1);
-	if (ret < 0) {
-		printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
-		return ret;
+		if (ret < 0) {
+			printf("dm_gpio_set_value(disp_reset_gpio, deassert) failed: %d", ret);
+			return ret;
+		}
+		mdelay(100);
 	}
-	mdelay(100);
 
 	return ret;
 }

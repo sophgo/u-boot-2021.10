@@ -308,6 +308,14 @@ config USB_DWC2_BUFFER_SIZE
 	  that size it is possible to shrink it. Smaller sizes should be fine
 	  because larger transactions could be split in smaller ones.
 
+config USB_DWC2_VERBOSE_DEBUG
+	bool "Enable verbose DWC2 host debug logs"
+	default n
+	help
+	  Enable verbose [USB dwc2] informational logs in the DWC2 host
+	  driver and related board hook path. Keep this disabled in
+	  production images to reduce console noise.
+
 endif # USB_DWC2
 
 config USB_R8A66597_HCD

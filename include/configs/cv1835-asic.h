@@ -10,7 +10,7 @@
 /* partition definitions header which is created by mkcvipart.py */
 /* please do not modify header manually */
 #include "cvipart.h"
-#include "cvi_panels/cvi_panel_diffs.h"
+#include "cvi_panel_diffs.h"
 
 /*#define CONFIG_ARMV8_SWITCH_TO_EL1*/
 

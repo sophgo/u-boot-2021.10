@@ -23,6 +23,7 @@
 #include "cv184x_pinlist_swconfig.h"
 #include <linux/delay.h>
 #include <bootstage.h>
+#include <cvitek/cvi_efuse.h>
 // #include <configs/cv184x-asic.h>
 
 #if defined(__riscv)
@@ -301,9 +302,12 @@ int board_init(void)
 #endif
 	pinmux_config(PINMUX_SDIO1);
 	PINMUX_CONFIG(CAM_MCLK0, CAM_MCLK0);
-	PINMUX_CONFIG(IIC3_SCL, IIC3_SCL);
-	PINMUX_CONFIG(IIC3_SDA, IIC3_SDA);
 	cvi_board_init();
+
+#if defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_EFUSE_ENABLE_FASTBOOT)
+	CVI_EFUSE_EnableFastBoot();
+#endif
+
 	return 0;
 }
 
@@ -357,6 +361,87 @@ void reset_cpu(void)
 	cv_system_reset();
 }
 
+/*
+ * Gate USB clocks from clkgen (see linux .../clk/cvitek/clk-cv184x.c).
+ * U-Boot has no cvitek,cv184x-clk driver, so dwc2_clk_enable_bulk() is a
+ * no-op; without this GSNPSID reads garbage and probe returns -ENODEV
+ * ("Port not available.").
+ */
+#if defined(CONFIG_USB_GADGET_DWC2_OTG) || defined(CONFIG_USB_DWC2)
+#define CV184X_REG_CLK_EN_0		0x0E8
+#define CV184X_REG_CLK_EN_1		0x0EC
+#define CV184X_REG_CLK_EN_4		0x0F8
+
+static void cv184x_usb_clocks_enable(void)
+{
+	uint32_t v;
+
+	v = mmio_read_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_0);
+	/* fab_100m + hsperi: parents for hsperi-domain clocks (see clk-cv184x.c) */
+	v |= BIT(0) | BIT(1) | BIT(31); /* + USB20_BUS_EARLY */
+	mmio_write_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_0, v);
+
+	v = mmio_read_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_1);
+	v |= BIT(0) | BIT(1) | BIT(2); /* suspend, ref, coreclkin */
+	mmio_write_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_1, v);
+
+	v = mmio_read_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_4);
+	v |= BIT(6) | BIT(7); /* clk_axi4_usb, clk_apb_usb */
+	mmio_write_32(CLOCK_GEN_BASE + CV184X_REG_CLK_EN_4, v);
+}
+
+/*
+ * Low-level USB prep matching Linux drivers/usb/dwc2/platform.c
+ * (dwc2_set_hw_id): host clears ID bits then sets 0x40; peripheral sets 0xC0.
+ */
+static void cv184x_usb_controller_prepare(int peripheral)
+{
+	uint32_t val;
+
+	cv184x_usb_clocks_enable();
+	udelay(200);
+
+	val = mmio_read_32(TOP_BASE + REG_TOP_SOFT_RST) & ~BIT_TOP_SOFT_RST_USB;
+	mmio_write_32(TOP_BASE + REG_TOP_SOFT_RST, val);
+	udelay(50);
+	val = mmio_read_32(TOP_BASE + REG_TOP_SOFT_RST) | BIT_TOP_SOFT_RST_USB;
+	mmio_write_32(TOP_BASE + REG_TOP_SOFT_RST, val);
+
+	/* TOP USB reset may affect gate state; reprogram clocks. */
+	cv184x_usb_clocks_enable();
+	udelay(200);
+
+	val = mmio_read_32(REG_TOP_USB_PHY_CTRL);
+	val &= ~0xC0;
+	val |= BIT_TOP_USB_PHY_CTRL_EXTVBUS;
+	val |= peripheral ? 0xC0 : 0x40;
+	mmio_write_32(REG_TOP_USB_PHY_CTRL, val);
+
+	/*
+	 * Linux dwc2 cvitek UTMI path uses phy REG014; clearing matches
+	 * utmi_reset() so the transceiver can leave reset before reading
+	 * controller ID (GSNPSID).
+	 */
+	mmio_write_32(USB2_0_PHY_BASE + 0x14, 0);
+	udelay(50);
+
+	mmio_write_32(REG_TOP_USB_ECO,
+		      mmio_read_32(REG_TOP_USB_ECO) | BIT_TOP_USB_ECO_RX_FLUSH);
+}
+#endif
+
+#ifdef CONFIG_USB_DWC2
+int dwc2_board_usb_init(struct udevice *dev)
+{
+#ifdef CONFIG_USB_DWC2_VERBOSE_DEBUG
+	printf("[USB dwc2] board hook %s: CV184X PHY+clk+reset (host)\n",
+	       dev ? dev->name : "(no dev)");
+#endif
+	cv184x_usb_controller_prepare(0);
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_USB_GADGET_DWC2_OTG
 struct dwc2_plat_otg_data cv182x_otg_data = {
 	.regs_otg = USB_BASE,
@@ -368,22 +453,7 @@ struct dwc2_plat_otg_data cv182x_otg_data = {
 
 int board_usb_init(int index, enum usb_init_type init)
 {
-	uint32_t value;
-
-	value = mmio_read_32(TOP_BASE + REG_TOP_SOFT_RST) & (~BIT_TOP_SOFT_RST_USB);
-	mmio_write_32(TOP_BASE + REG_TOP_SOFT_RST, value);
-	udelay(50);
-	value = mmio_read_32(TOP_BASE + REG_TOP_SOFT_RST) | BIT_TOP_SOFT_RST_USB;
-	mmio_write_32(TOP_BASE + REG_TOP_SOFT_RST, value);
-
-	/* Set USB phy configuration */
-	value = mmio_read_32(REG_TOP_USB_PHY_CTRL);
-	mmio_write_32(REG_TOP_USB_PHY_CTRL, value | BIT_TOP_USB_PHY_CTRL_EXTVBUS
-					| USB_PHY_ID_OVERRIDE_ENABLE
-					| USB_PHY_ID_VALUE);
-
-	/* Enable ECO RXF */
-	mmio_write_32(REG_TOP_USB_ECO, mmio_read_32(REG_TOP_USB_ECO) | BIT_TOP_USB_ECO_RX_FLUSH);
+	cv184x_usb_controller_prepare(1);
 
 	printf("cvi_usb_hw_init done\n");
 

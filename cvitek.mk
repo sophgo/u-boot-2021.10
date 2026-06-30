@@ -60,23 +60,17 @@ cviboard = $(shell echo $(CVIBOARD) | tr a-z A-Z)
 KBUILD_CPPFLAGS += -DCVICHIP=${CHIP}
 KBUILD_CPPFLAGS += -DCVIBOARD=${CVIBOARD} -D${cvichip}_${cviboard}
 
-ifneq (${PANEL_TUNING_PARAM},)
-cvi_panel = $(shell echo $(PANEL_TUNING_PARAM) | tr a-z A-Z)
-KBUILD_CPPFLAGS += -D${cvi_panel}
-KBUILD_CPPFLAGS += $(if $(findstring I80,$(cvi_panel)),-D${cvichip}_${cviboard}_I80,)
-endif
-
-ifneq (${PANEL_LANE_NUM_TUNING_PARAM},)
-KBUILD_CPPFLAGS += -D$(shell echo $(PANEL_LANE_NUM_TUNING_PARAM) | tr a-z A-Z)
-endif
-
-ifneq (${PANEL_LANE_SWAP_TUNING_PARAM},)
-KBUILD_CPPFLAGS += -D$(shell echo $(PANEL_LANE_SWAP_TUNING_PARAM) | tr a-z A-Z)
-endif
 
 KBUILD_CPPFLAGS += $(if $(findstring CV183X,$(CHIP_ARCH)),-DBOOTLOGO_ISP_RESET,)
 
 KBUILD_CFLAGS += -I$(srctree)/include/cvitek
+
+# 16-bit UTMI (Linux dwc2_set_cv182x_params: phy_utmi_width = 16)
+ifeq (${CONFIG_USB_DWC2},y)
+ifeq (${CONFIG_TARGET_CVITEK_CV184X},y)
+KBUILD_CPPFLAGS += -DCONFIG_DWC2_UTMI_WIDTH=16
+endif
+endif
 
 ifeq (${CONFIG_DUAL_OS},y)
 KBUILD_CPPFLAGS += -DCONFIG_DUAL_OS=${CONFIG_DUAL_OS}
@@ -85,4 +79,3 @@ endif
 ifeq ($(CVIBOARD),fpga)
 KBUILD_CPPFLAGS += -DCONFIG_BOARD_FPGA=y
 endif
-

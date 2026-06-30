@@ -44,6 +44,7 @@ uint16_t cvi_usb_vid = 0x3346;
 #endif
 
 uint16_t cvi_usb_pid;
+uint32_t usb_last_s2d_size;
 
 #define USB_UPDATE_EMMC_ERROR	"emmc_write_fail"
 #define USB_UPDATE_NAND_ERROR	"nand_write_fail"
@@ -168,7 +169,8 @@ struct sram_info {
 
 static struct sram_info sram_info;
 
-static char *_allow_cmds[] = { "setenv", "saveenv", "efusew", "efuser" };
+static char *_allow_cmds[] = { "setenv", "saveenv", "efusew", "efuser",
+			       "mmc", "fatwrite", "part", "setexpr" };
 
 #if USB_RW_EFUSE // Mark_to_do
 static char *_allow_areas[] = { "USER",	     "DEVICE_ID", "HASH0_PUBLIC",
@@ -1016,11 +1018,23 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 				_allow_cmds[i], strlen(_allow_cmds[i])) == 0) {
 				strlcpy(cmd, (void *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE),
 					min(length - HEADER_SIZE + 1, (uint32_t)254));
+#ifdef CONFIG_SD_BOOT
+				{
+					char *p = strstr(cmd, "fip_spl.bin");
+					if (p) {
+						memmove(p + 7, p + 11, strlen(p + 11) + 1);
+						memcpy(p, "fip.bin", 7);
+					}
+				}
+#endif
 				NOTICE("run command: %s\n", cmd);
 				run_command(cmd, 0);
 				break;
 			}
 		}
+		if (i == ARRAY_SIZE(_allow_cmds))
+			NOTICE("command not allowed: %s\n",
+			       (char *)((uintptr_t)cmdBuf + (uintptr_t)HEADER_SIZE));
 		sendInReq(length, CVI_USB_PRG_CMD, bulkResetOutReq, NULL, 0);
 		break;
 

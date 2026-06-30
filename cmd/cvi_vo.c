@@ -7,6 +7,8 @@
 #include <command.h>
 #include <common.h>
 #include <stdlib.h>
+#include <dm/uclass.h>
+#include <video.h>
 #include <linux/delay.h>
 #include <cpu_func.h>
 #include <cvi_disp.h>
@@ -14,7 +16,7 @@
 #include "../drivers/video/cvitek/scaler.h"
 #include "../drivers/video/cvitek/dsi_phy.h"
 
-#include <cvi_panels/cvi_panels.h>
+#include <PanelSupportList/cvi_panels.h>
 
 #include <asm/io.h>
 
@@ -265,6 +267,9 @@ static int do_startvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 	u64 addr_in, addr_out;
 	char *endp;
 	int size_offset, align;
+	int rotation = 0;
+	bool need_swap_wh = false;
+	int tmp_wh;
 
 	if (argc < 6)
 		return CMD_RET_USAGE;
@@ -284,15 +289,37 @@ static int do_startvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 	align = simple_strtoul(argv[5], &endp, 10);
 	if (*argv[5] == 0 || *endp != 0)
 		return CMD_RET_USAGE;
+	rotation = cvi_disp_get_uboot_rotation();
+	if (argc >= 7) {
+		rotation = simple_strtol(argv[6], &endp, 10);
+		if (*argv[6] == 0 || *endp != 0)
+			return CMD_RET_USAGE;
+		if (!cvi_disp_is_valid_rotation(rotation)) {
+			printf("rotation must be one of 0/90/180/270\n");
+			return CMD_RET_USAGE;
+		}
+	}
 
 	timing = sclr_disp_get_timing();
 
 	rect.w = *(int *)(addr_in + size_offset);
 	rect.h = *(int *)(addr_in + size_offset + 4);
+	need_swap_wh = ((rotation == 90 || rotation == 270) &&
+			(intf_type != SCLR_VO_INTF_I80_SW));
+	if (need_swap_wh) {
+		tmp_wh = rect.w;
+		rect.w = rect.h;
+		rect.h = tmp_wh;
+	}
 	stride = ALIGN(rect.w, align);
 
-	rect.y = (timing->vmde_end - timing->vmde_start + 1 - rect.h) / 2;
-	rect.x = (timing->hmde_end - timing->hmde_start + 1 - rect.w) / 2;
+	rect.y = (timing->vfde_end - timing->vfde_start + 1 - rect.h) / 2;
+	rect.x = (timing->hfde_end - timing->hfde_start + 1 - rect.w) / 2;
+
+	printf("timing: vfde_end=%d, vfde_start=%d, hfde_end=%d, hfde_start=%d, "
+	       "rect.h=%d, rect.w=%d, rotation=%d\n",
+	       timing->vfde_end, timing->vfde_start, timing->hfde_end,
+	       timing->hfde_start, rect.h, rect.w, rotation);
 
 	sclr_disp_set_rect(rect);
 	cfg = sclr_disp_get_cfg();
@@ -354,9 +381,9 @@ static int do_startvl(struct cmd_tbl *cmdtp, int flag, int argc, char * const ar
 }
 
 U_BOOT_CMD(startvl
-	, 6, 0, do_startvl
+	, 7, 0, do_startvl
 	, "open video layer of the vo"
-	, "- startvl [layer address_in address_out img_size_addr_offset alignment]"
+	, "- startvl [layer address_in address_out img_size_addr_offset alignment [rotation]]"
 );
 
 /***************************************************/
@@ -412,4 +439,3 @@ U_BOOT_CMD(setvobg
 	, "set vo background color"
 	, "    - setvobg [dev bgcolor]"
 );
-

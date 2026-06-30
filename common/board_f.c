@@ -362,8 +362,44 @@ static int setup_dest_addr(void)
 #if (CONFIG_SYS_RESVIONSZ != 0)
 static int reserve_ion(void)
 {
-	gd->relocaddr -= CONFIG_SYS_RESVIONSZ;
-	debug("Reserving %dk for ion buffer at %08lx\n", (CONFIG_SYS_RESVIONSZ >> 16), gd->relocaddr);
+	ulong ion_sz = CONFIG_SYS_RESVIONSZ;
+
+	/*
+	 * Estimate all subsequent reserves so that new_gd does not overlap
+	 * the current gd. The constraint is:
+	 *   relocaddr >= (ulong)gd + sizeof(gd_t) + est   (est covers all
+	 *   reserves between here and new_gd; see each reserve_* below).
+	 */
+	ulong est = gd->mon_len				/* reserve_uboot */
+		  + TOTAL_MALLOC_LEN			/* reserve_malloc */
+#if defined(CONFIG_SYS_NONCACHED_MEMORY)
+		  + ALIGN(CONFIG_SYS_NONCACHED_MEMORY, MMU_SECTION_SIZE)
+		  + MMU_SECTION_SIZE			/* reserve_noncached */
+#endif
+		  + sizeof(struct bd_info)		/* reserve_board */
+		  + sizeof(gd_t)			/* reserve_global_data */
+		  + (gd->fdt_blob
+		     ? ALIGN(fdt_totalsize(gd->fdt_blob), 32)
+		     : 256 * 1024)			/* reserve_fdt + misc */
+		  + 128 * 1024;				/* arch_mmu + round_4k
+							   + video + trace */
+
+	ulong min_reloc = (ulong)gd + sizeof(gd_t) + est;
+
+		/* Clamp ION size if it would push relocaddr below min_reloc */
+	if (gd->relocaddr > min_reloc &&
+	    gd->relocaddr - ion_sz < min_reloc) {
+		ion_sz = gd->relocaddr - min_reloc;
+		printf("WARNING: Clamping ION reserve from %lu MiB to %lu MiB\n",
+		       (ulong)CONFIG_SYS_RESVIONSZ >> 20, ion_sz >> 20);
+	} else if (gd->relocaddr <= min_reloc) {
+		ion_sz = 0;
+		printf("WARNING: Skipping ION reserve, not enough space\n");
+	}
+
+	gd->relocaddr -= ion_sz;
+	debug("Reserving %ldk for ion buffer at %08lx\n",
+	      ion_sz >> 10, gd->relocaddr);
 	return 0;
 }
 #endif
@@ -700,6 +736,11 @@ static int setup_reloc(void)
 	gd->reloc_off = gd->relocaddr - CONFIG_SYS_TEXT_BASE;
 #endif
 #endif
+	if ((ulong)gd->new_gd < (ulong)gd + sizeof(gd_t) &&
+	    (ulong)gd < (ulong)gd->new_gd + sizeof(gd_t))
+		printf("WARNING: gd(%p) and new_gd(%p) overlap! size=%lx, gap=%ld\n",
+		       gd, gd->new_gd, (ulong)sizeof(gd_t),
+		       (long)((ulong)gd->new_gd - (ulong)gd));
 	memcpy(gd->new_gd, (char *)gd, sizeof(gd_t));
 
 	debug("Relocation Offset is: %08lx\n", gd->reloc_off);

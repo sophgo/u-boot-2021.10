@@ -162,6 +162,8 @@ const struct flash_info spi_nor_ids[] = {
 	{ INFO("W25Q32RV-DTR", 0xef7016, 0x0, 64 * 1024, 64,
 		SPI_NOR_QUAD_READ | SECT_4K | SPI_NOR_DTR_READ)
 		.dtr_dummy_cycle = 8},
+	{ INFO("UC25IQ128", 0xB34018, 0x0, 64 * 1024, 256,
+		SPI_NOR_QUAD_READ | SECT_4K) },
 	{ },
 };
 

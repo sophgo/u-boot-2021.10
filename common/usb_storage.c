@@ -722,8 +722,8 @@ static int usb_stor_BBB_transport(struct scsi_cmd *srb, struct us_data *us)
 	debug("COMMAND phase\n");
 	result = usb_stor_BBB_comdat(srb, us);
 	if (result < 0) {
-		debug("failed to send CBW status %ld\n",
-		      us->pusb_dev->status);
+		printf("USB BBB: CBW Bulk-OUT failed result=%d status=0x%lx\n",
+		       result, us->pusb_dev->status);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	}
@@ -755,8 +755,9 @@ static int usb_stor_BBB_transport(struct scsi_cmd *srb, struct us_data *us)
 			goto st;
 	}
 	if (result < 0) {
-		debug("usb_bulk_msg error status %ld\n",
-		      us->pusb_dev->status);
+		printf("USB BBB: DATA Bulk-%s failed result=%d actlen=%d/%lu status=0x%lx\n",
+		       dir_in ? "IN" : "OUT", result, data_actlen,
+		       srb->datalen, us->pusb_dev->status);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	}
@@ -784,8 +785,8 @@ again:
 			goto again;
 	}
 	if (result < 0) {
-		debug("usb_bulk_msg error status %ld\n",
-		      us->pusb_dev->status);
+		printf("USB BBB: CSW Bulk-IN failed result=%d actlen=%d status=0x%lx\n",
+		       result, actlen, us->pusb_dev->status);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	}
@@ -800,19 +801,21 @@ again:
 	if (pipe == 0 && srb->datalen != 0 && srb->datalen - data_actlen != 0)
 		pipe = srb->datalen - data_actlen;
 	if (CSWSIGNATURE != le32_to_cpu(csw->dCSWSignature)) {
-		debug("!CSWSIGNATURE\n");
+		printf("USB BBB: bad CSW signature 0x%08x (expected 0x%08x) actlen=%d\n",
+		       le32_to_cpu(csw->dCSWSignature), CSWSIGNATURE, actlen);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	} else if ((CBWTag - 1) != le32_to_cpu(csw->dCSWTag)) {
-		debug("!Tag\n");
+		printf("USB BBB: CSW tag mismatch 0x%08x vs expected 0x%08x\n",
+		       le32_to_cpu(csw->dCSWTag), CBWTag - 1);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	} else if (csw->bCSWStatus > CSWSTATUS_PHASE) {
-		debug(">PHASE\n");
+		printf("USB BBB: CSW status invalid (%d)\n", csw->bCSWStatus);
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	} else if (csw->bCSWStatus == CSWSTATUS_PHASE) {
-		debug("=PHASE\n");
+		printf("USB BBB: CSW phase error\n");
 		usb_stor_BBB_reset(us);
 		return USB_STOR_TRANSPORT_FAILED;
 	} else if (data_actlen > srb->datalen) {

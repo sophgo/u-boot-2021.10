@@ -980,19 +980,37 @@ config CMD_GPT_RENAME
 	  partitions via the 'rename' command.
 
 config BOOTLOGO
-        bool "Show bootlogo"
-    select CMD_CVI_JPEG
-        help
-      Show bootlogo when uboot is booting.
+	bool "Show bootlogo"
+	select CMD_CVI_JPEG
+	select CMD_CVI_VO
+	select DM_GPIO
+	select DWAPB_GPIO
+	select DM_VIDEO
+	help
+      	  Show bootlogo when uboot is booting.
           This provides a way to show bootlogo which is saved in MISC partition.
           When enable this command it will add a new environment variable showlogo
-      and will add the showlogo to the beginning of bootcmd
+	  and will add the showlogo to the beginning of bootcmd
 
 config EFUSE_ENABLE_FASTBOOT
 	bool "efusew FASTBOOT"
 	help
 	  This enables the 'efusew FASTBOOT' command for fastboot, which allows reading
 	  and writing efuse bits. This is useful for automatically writing FASTBOOT efuse.
+
+config SPL_EFUSE_ENABLE_FASTBOOT
+	bool "Enable FASTBOOT efuse in SPL"
+	depends on SPL && EFUSE_ENABLE_FASTBOOT
+	help
+	  Enable FASTBOOT efuse programming from SPL board init.
+
+config EFUSE_FASTBOOT_KEEP_SD_DL
+	bool "efusew FASTBOOT keep SD download enabled"
+	depends on EFUSE_ENABLE_FASTBOOT
+	default n
+	help
+	  Keep SD download enabled when running 'efusew FASTBOOT'.
+	  If disabled, SD/USB/UART download are all disabled by default.
 
 config CMD_IDE
 	bool "ide - Support for IDE drivers"
@@ -2436,6 +2454,20 @@ config CMD_CVI_UPDATE
 	help
 	uboot will check flag in SRAM and thendecide if it's sd,usb,usb drive or Ethernet upgrade.
 	User can run cvi_update [usb/sd/eth] for force update without check flag.
+
+config SD_BURNLOGO
+	bool "Show logo during cvi_update"
+	depends on CMD_CVI_UPDATE
+	default y if BOOTLOGO
+	select CMD_CVI_JPEG
+	select CMD_CVI_VO
+	select DM_GPIO
+	select DWAPB_GPIO
+	select DM_VIDEO
+	help
+	  Enable upgrade progress logo rendering in cvi_update flow.
+	  This controls upgrade-time logo display independently from
+	  CONFIG_BOOTLOGO (boot-time logo display).
 
 config CHECK_USB_PLUG
 	bool "Check USB plug status"

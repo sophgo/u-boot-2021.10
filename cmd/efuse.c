@@ -352,6 +352,22 @@ static CVI_S32 _CVI_EFUSE_Read(CVI_U32 addr, void *buf, CVI_U32 buf_size)
 }
 #endif
 
+CVI_U32 CVI_EFUSE_Read_Word(CVI_U32 addr)
+{
+	CVI_U32 addr_row;
+	CVI_U32 val = 0;
+
+	if (addr >= EFUSE_SIZE)
+		return -EFAULT;
+
+	addr_row = addr / 4;
+
+	val |= cvi_efuse_read_from_phy((addr_row << 1) | 0, EFUSE_AREAD);
+	val |= cvi_efuse_read_from_phy((addr_row << 1) | 1, EFUSE_AREAD);
+
+	return val;
+}
+
 static CVI_S32 _CVI_EFUSE_Write(CVI_U32 addr, const void *buf, CVI_U32 buf_size)
 {
 	_cc_trace("addr=0x%02x\n", addr);
@@ -511,10 +527,15 @@ CVI_S32 CVI_EFUSE_EnableFastBoot(void)
 	if (ret < 0)
 		return ret;
 
-	// set sd dl button
-	value = (0x1 << 22);
-	value |= (0x1 << 24);
-	value |= (0x1 << 26);
+	value = 0;
+#ifndef CONFIG_EFUSE_FASTBOOT_KEEP_SD_DL
+	value |= (0x1 << 22); // SD DL Disable; {bit22:23, 0b00/0b11: SD DL
+		// Enable; 0b01: Fastboot Mode; 0b10: Disable}
+#endif
+	value |= (0x1 << 24); // USB DL Disable; {bit24:25, 0b00/0b11: USB DL
+		// Enable; 0b01: Fastboot Mode; 0b10: Disable}
+	value |= (0x1 << 26); // UART DL Disable; {bit26:27, 0b00/0b11: UART DL
+		// Enable; 0b01: Fastboot Mode; 0b10: Disable}
 
 	return _CVI_EFUSE_Write(CVI_EFUSE_SW_INFO, &value, sizeof(value));
 }
@@ -702,6 +723,18 @@ static int find_efuse_by_name(const char *name)
 	return -1;
 }
 
+static void print_efuse_index_list(void)
+{
+	int i;
+
+	printf("Available eFuse items:\n");
+	for (i = 0; i < ARRAY_SIZE(efuse_index); i++) {
+		if (!efuse_index[i])
+			continue;
+		printf("  %s\n", efuse_index[i]);
+	}
+}
+
 static int do_efuser(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	int idx;
@@ -711,6 +744,11 @@ static int do_efuser(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 
 	if (argc != 2)
 		return CMD_RET_USAGE;
+
+	if (!strcmp(argv[1], "list")) {
+		print_efuse_index_list();
+		return 0;
+	}
 
 	_cc_trace("Read eFuse: %s\n", argv[1]);
 	idx = find_efuse_by_name(argv[1]);
@@ -763,7 +801,16 @@ static int do_efusew(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 	if (argc != 2 && argc != 3)
 		return CMD_RET_USAGE;
 
-	_cc_trace("Write eFuse: %s=%s\n", argv[1], argv[2]);
+	if (argc == 2 && !strcmp(argv[1], "list")) {
+		print_efuse_index_list();
+		return 0;
+	}
+
+	if (argc == 3)
+		_cc_trace("Write eFuse: %s=%s\n", argv[1], argv[2]);
+	else
+		_cc_trace("Write eFuse: %s\n", argv[1]);
+
 	idx = find_efuse_by_name(argv[1]);
 	if (idx < 0)
 		return CMD_RET_USAGE;
@@ -828,6 +875,27 @@ static int do_efusew(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv
 	return CMD_RET_FAILURE;
 }
 
+static int do_efuser_word(struct cmd_tbl *cmdtp, int flag, int argc,
+			  char *const argv[])
+{
+	uint32_t addr;
+	uint32_t val;
+
+	if (argc != 2)
+		return CMD_RET_USAGE;
+
+	addr = simple_strtoul(argv[1], NULL, 0);
+
+	if (addr > 63)
+		return CMD_RET_USAGE;
+
+	val = CVI_EFUSE_Read_Word(addr << 2);
+
+	printf("addr address 0x%04x= 0x%08x\n", addr << 2, val);
+
+	return 0;
+}
+
 static int do_efusew_word(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	uint32_t addr, value;
@@ -864,18 +932,41 @@ static int do_efuser_dump(struct cmd_tbl *cmdtp, int flag, int argc, char *const
 	return 0;
 }
 
-U_BOOT_CMD(efuser, 9, 1, do_efuser, "Read efuse",
-	   "[args..]\n"
-	   "    - args ...");
+U_BOOT_CMD(efuser, 9, 1, do_efuser, "Read eFuse area / status",
+	   "efuser list\n"
+	   "efuser <ITEM>\n"
+	   "    - list: print available eFuse items\n"
+	   "    - ITEM: read eFuse area or query status (lock/secureboot/fastboot)\n"
+	   "Example:\n"
+	   "    efuser USER\n"
+	   "    efuser LOCK_HASH0_PUBLIC\n"
+	   "    efuser SECUREBOOT\n");
 
-U_BOOT_CMD(efusew, 9, 1, do_efusew, "Write efuse",
-	   "[args..]\n"
-	   "    - args ...");
+U_BOOT_CMD(efusew, 9, 1, do_efusew, "Program eFuse / lock / enable features",
+	   "efusew list\n"
+	   "efusew <AREA_ITEM> <hexbytes>\n"
+	   "efusew <LOCK_ITEM>\n"
+	   "efusew SECUREBOOT <sel>\n"
+	   "efusew FASTBOOT\n"
+	   "    - list: print available eFuse items\n"
+	   "    - AREA_ITEM: program an eFuse area with hex bytes (no 0x prefix)\n"
+	   "    - LOCK_ITEM: permanently lock (read/lock or write lock depending on item)\n"
+	   "    - sel: platform-defined secure boot selection value\n"
+	   "Example:\n"
+	   "    efusew USER 00112233445566778899aabbccddeeff\n"
+	   "    efusew LOCK_HASH0_PUBLIC\n"
+	   "    efusew LOCK_WRITE_HASH0_PUBLIC\n"
+	   "    efusew SECUREBOOT 0\n"
+	   "    efusew FASTBOOT\n");
+
+U_BOOT_CMD(efuser_word, 9, 1, do_efuser_word, "Read word to efuse",
+	   "efusew_word addr value\n"
+	   "    - args address row;the address range from 0~63");
 
 U_BOOT_CMD(efusew_word, 9, 1, do_efusew_word, "Write word to efuse",
 	   "efusew_word addr value\n"
 	   "    - args ...");
 
-U_BOOT_CMD(efuser_dump, 9, 1, do_efuser_dump, "Read/Dump efuse",
+U_BOOT_CMD(efuser_dump, 9, 1, do_efuser_dump, "Read/Dump efuse except secure area",
 	   "do_efuser_dump\n"
 	   "    - args ...");

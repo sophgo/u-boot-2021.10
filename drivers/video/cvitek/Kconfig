@@ -74,4 +74,6 @@ config DISPLAY_CVITEK_MIPI
 
 endchoice
 
+source "include/cvitek/PanelSupportList/Kconfig.panels"
+
 endif

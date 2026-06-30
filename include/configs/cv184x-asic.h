@@ -24,7 +24,7 @@
 /* partition definitions header which is created by mkcvipart.py */
 /* please do not modify header manually */
 #include "cvipart.h"
-#include "cvi_panels/cvi_panel_diffs.h"
+#include "cvi_panel_diffs.h"
 
 // defined in this .h
 #undef CONFIG_BOOTCOMMAND
@@ -235,6 +235,8 @@
 		#else
 			#define ROOTARGS "ubi.mtd=ROOTFS ubi.block=0,0"
 		#endif /* CONFIG_SKIP_RAMDISK */
+	#elif defined(CONFIG_SD_BOOT)
+		#define ROOTARGS "root=" ROOTFS_DEV " rootwait rw"
 	#elif defined(CONFIG_EMMC_SUPPORT)
 		#ifdef CONFIG_ROOTFS_RW
 			#define ROOTARGS "rootfstype=ext4 rootwait rw _a root=" ROOTFS_DEV
@@ -249,7 +251,10 @@
 		#endif
 	#else
 		#ifdef CONFIG_ROOTFS_RW
-			#error "spi flash is not supporte rootfs rw yet"
+			#define ROOTARGS "rootfstype=jffs2 rootwait rw _a root=" ROOTFS_DEV
+			#ifdef CONFIG_ROOTFS_B
+			#define ROOTARGSB "rootfstype=jffs2 rootwait rw _b root=" ROOTFS_DEV_B
+			#endif
 		#else
 			#define ROOTARGS "rootfstype=squashfs rootwait ro _a root=" ROOTFS_DEV
 			#ifdef CONFIG_ROOTFS_B
@@ -368,12 +373,14 @@
 #endif
 	#define SD_BOOTM_COMMAND \
 				SET_BOOTARGS \
-				"echo Boot from SD with ramboot.itb;" \
-				"mmc dev 1 && fatload mmc 1 ${uImage_addr} ramboot.itb; " \
+				"echo Boot from SD ...;" \
+				"mmc dev 0 && fatload mmc 0 ${uImage_addr} boot.sd; " \
 				"if test $? -eq 0; then " \
 				UBOOT_VBOOT_BOOTM_COMMAND \
 				"fi;"
-#ifdef CONFIG_DUAL_OS
+#ifdef CONFIG_SD_BOOT
+	#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update || run sdboot"
+#elif defined(CONFIG_DUAL_OS)
 	#if defined(CONFIG_NAND_SUPPORT)
 		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update ||run nandboot"
 	#elif defined(CONFIG_EMMC_SUPPORT)

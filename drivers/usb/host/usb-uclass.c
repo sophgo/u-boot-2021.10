@@ -287,7 +287,8 @@ int usb_init(void)
 
 		ret = device_probe(bus);
 		if (ret == -ENODEV) {	/* No such device. */
-			puts("Port not available.\n");
+			printf("Port not available (probe errno=%d, driver logs above).\n",
+			       ret);
 			controllers_initialized++;
 			continue;
 		}
