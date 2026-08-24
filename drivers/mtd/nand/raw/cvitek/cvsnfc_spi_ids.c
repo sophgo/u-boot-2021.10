@@ -233,6 +233,32 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 
 	},
 
+	/* Etron EM73D044VCU-H 2Gbit */
+	{
+		.name      = "EM73D044VCU",
+		.id        = {0xd5, 0x4a},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd, /* Etron supports QE, unlike ESMT */
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT
+		       | FLAGS_BBT_LARGE_MAXBLOCKS,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2, /* 10b = uncorrectable */
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	/* ESMT F50L1G41LB 1Gbit */
 	{
 		.name      = "F50L1G41LB",
@@ -1191,6 +1217,31 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	/* Winbond W25N04LV 4Gbit */
+	{
+		.name      = "W25N04LV",
+		.id        = {0xef, 0x8b, 0x23},
+		.id_len    = 3,
+		.chipsize  = _512M,
+		.erasesize = _256K,
+		.pagesize  = _4K,
+		.oobsize   = 256,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_esmt,
+		.flags = FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	/* Winbond W25N01KVxxIR 1Gbit */
 	{
 		.name      = "W25N01KV",
@@ -1706,6 +1757,34 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	/* XinCun XCSP1AXPK-IT 1Gbit 3.3V */
+	{
+		.name         = "XCSP1AXPK-IT",
+		.id           = { 0x6C, 0x01 },
+		.id_len       = 2,
+		.chipsize     = _128M,
+		.erasesize    = _128K,
+		.pagesize     = _2K,
+		.oobsize      = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver       = &spi_nand_driver_gd,
+		.flags        = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT |
+				FLAGS_ENABLE_X4_BIT,
+		/* Configuration register (SR-2 at 0xB0), ECC_EN bit 4 */
+		.ecc_en_feature_offset = 0xb0,
+		.ecc_en_mask           = 1 << 4,
+		/* Status register (SR-3 at 0xC0), ECCS_[1:0] at bit 4-5 */
+		.ecc_status_offset     = 0xc0,
+		.ecc_status_mask       = 0x30,
+		.ecc_status_shift      = 4,
+		.ecc_status_uncorr_val = 0x2, /* 10b = uncorrectable */
+		.sck_l                 = 1,
+		.sck_h                 = 1,
+		.max_freq              = SPI_NAND_FREQ_62MHz,
+		.sample_param          = 0x40001000,
+		.xtal_switch           = 1,
+	},
+
 	{	.id_len    = 0,	},
 };
 
@@ -1808,6 +1887,35 @@ static void dump_nand_info(struct cvsnfc_chip_info *nandinfo)
 	pr_info("\n");
 }
 
+/* Per-chip BBT descriptor for flashes with a large tail bad-block count
+ * (e.g. EM73D044VCU has 33 factory bad blocks at the tail). The default
+ * NAND_BBT_SCAN_MAXBLOCKS(=4) search range cannot find a good block to
+ * store the BBT, causing -ENOSPC. Expand the search range to 40.
+ * nand_default_bbt() keeps a driver-set bbt_td (if (!bbt_td) guard).
+ */
+static u8 cvsnfc_bbt_pattern[] = {'B', 'b', 't', '0'};
+static u8 cvsnfc_mirror_pattern[] = {'1', 't', 'b', 'B'};
+
+static struct nand_bbt_descr cvsnfc_bbt_main_descr = {
+	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
+		| NAND_BBT_NO_OOB,
+	.len = 4,
+	.veroffs = 4,
+	.maxblocks = 40,
+	.pattern = cvsnfc_bbt_pattern,
+};
+
+static struct nand_bbt_descr cvsnfc_bbt_mirror_descr = {
+	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
+		| NAND_BBT_NO_OOB,
+	.len = 4,
+	.veroffs = 4,
+	.maxblocks = 40,
+	.pattern = cvsnfc_mirror_pattern,
+};
+
 static struct nand_flash_dev *spi_nand_get_flash_info(struct mtd_info *mtd,
 						      struct nand_chip *chip,
 						      struct nand_flash_dev_ex *flash_dev_ex)
@@ -1884,6 +1992,17 @@ static struct nand_flash_dev *spi_nand_get_flash_info(struct mtd_info *mtd,
 
 		if ((host->nand_chip_info->flags & FLAGS_SET_QE_BIT) && host->nand_chip_info->driver->qe_enable)
 			host->nand_chip_info->driver->qe_enable(host->spi);
+
+		/* Per-chip: expand BBT search range for flashes flagged
+		 * FLAGS_BBT_LARGE_MAXBLOCKS so nand_default_bbt can find a
+		 * good block among the tail to write the BBT (avoids -ENOSPC
+		 * when the default 4-block range is all bad). Other flashes
+		 * keep the default descriptor.
+		 */
+		if (host->nand_chip_info->flags & FLAGS_BBT_LARGE_MAXBLOCKS) {
+			host->chip->bbt_td = &cvsnfc_bbt_main_descr;
+			host->chip->bbt_md = &cvsnfc_bbt_mirror_descr;
+		}
 
 		return flash_type;
 	}

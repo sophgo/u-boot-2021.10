@@ -18,6 +18,7 @@
 #define EPHY_EFUSE_TXECHORC_FLAG 0x00000100 // bit 8
 #define EPHY_EFUSE_TXITUNE_FLAG 0x00000200 // bit 9
 #define EPHY_EFUSE_TXRXTERM_FLAG 0x00000800 // bit 11
+#define EPHY_EFUSE_NEW_TESTMETHOD_BIT BIT(10)    /* bit10: new test method flag */
 
 #if defined(CVI_ETH_PHY_LOOPBACK)
 static int cv182xa_set_phy_loopback(struct phy_device *phydev, int mode)
@@ -29,6 +30,7 @@ static int cv182xa_set_phy_loopback(struct phy_device *phydev, int mode)
 static void cv182xa_ephy_init(void)
 {
 	uint32_t val = 0;
+	uint32_t blk45 = 0;
 
 	// set rg_ephy_apb_rw_sel 0x0804@[0]=1/APB by using APB interface
 	mmio_write_32(0x03009804, 0x0001);
@@ -63,14 +65,17 @@ static void cv182xa_ephy_init(void)
 	// Set Double Bias Current
 	//Set rg_eth_txitune1  0x03009064 [15:8]
 	//Set rg_eth_txitune0  0x03009064 [7:0]
-	if ((mmio_read_32(EPHY_EFUSE_VALID_BIT_BASE) & EPHY_EFUSE_TXITUNE_FLAG) ==
-		EPHY_EFUSE_TXITUNE_FLAG) {
+	/* CV184XSDK-1347: use bit10 (new test method) to decide txitune source */
+	blk45 = mmio_read_32(EPHY_EFUSE_ECO_BIT_BASE);
+	if ((blk45 & EPHY_EFUSE_NEW_TESTMETHOD_BIT) &&
+	    (mmio_read_32(EPHY_EFUSE_VALID_BIT_BASE) & EPHY_EFUSE_TXITUNE_FLAG)) {
 		val = ((mmio_read_32(0x03050124) >> 24) & 0xFF) |
-				(((mmio_read_32(0x03050124) >> 16) & 0xFF) << 8);
+		      (((mmio_read_32(0x03050124) >> 16) & 0xFF) << 8);
 		mmio_clrsetbits_32(0x03009064, 0xFFFF, val);
-	} else
+	} else {
 		mmio_write_32(0x03009064, 0x5a5a);
-	mmio_write_32(0x03009064, 0x5a5a);
+	}
+	// mmio_write_32(0x03009064, 0x5a5a);
 	// Set Echo_I
 	// Set rg_eth_txechoiadj 0x03009054  [15:8]
 	if ((mmio_read_32(EPHY_EFUSE_VALID_BIT_BASE) & EPHY_EFUSE_TXECHORC_FLAG) ==
@@ -90,7 +95,7 @@ static void cv182xa_ephy_init(void)
 		mmio_clrsetbits_32(0x03009058, 0xFF0, val);
 	} else
 		mmio_write_32(0x03009058, 0x0bb0);
-	mmio_write_32(0x03009058, 0x0bb0);
+	// mmio_write_32(0x03009058, 0x0bb0);
 // ETH_100BaseT
 	// Set Rise update
 	mmio_write_32(0x0300905c, 0x0c10);

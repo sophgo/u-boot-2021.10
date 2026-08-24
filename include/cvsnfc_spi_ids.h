@@ -115,6 +115,7 @@ struct spi_nand_driver {
 #define FLAGS_ONLY_ONEBIT_MODE_BIT	(BIT(5))
 #define FLAGS_CONTORL_WP_BIT		(BIT(6))
 #define FLAGS_SUPPORT_W_TWICE_DEBUG	(BIT(7))
+#define FLAGS_BBT_LARGE_MAXBLOCKS	BIT(11)
 
 #define SPI_NAND_FREQ_XTAL	0 /* 6.25 Mhz */
 #define SPI_NAND_FREQ_23MHz	1 /* 23.4375 Mhz */
