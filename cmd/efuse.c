@@ -501,7 +501,8 @@ CVI_S32 CVI_EFUSE_EnableFastBoot(void)
 	if (ret < 0)
 		return ret;
 
-	if ((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) { // 181XC (X <= 3)
+	if (((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) || // 181XC (X <= 3)
+			(chip & 0xFFFFF) == 0x1815) { // 1815
 		value |= 0x1E1E64; // CV181X-AUX0
 		if (value != 0x1E1E64) {
 			_cc_trace("CUSTOMER value=%u\n", value);
@@ -559,7 +560,8 @@ CVI_S32 CVI_EFUSE_IsFastBootEnabled(void)
 	if (ret < 0)
 		return ret;
 
-	if ((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) { // 181XC (X <= 3)
+	if (((chip & 0xFFF0F) == 0x1810C && ((chip >> 4) & 0xF) <= 3) || // 181XC (X <= 3)
+			(chip & 0xFFFFF) == 0x1815) { // 1815
 		if (value == 0x1E1E64)
 			return CVI_SUCCESS; // CV181X-AUX0
 		else

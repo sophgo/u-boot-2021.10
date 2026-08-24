@@ -1147,6 +1147,31 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	/* Winbond W25N04LV 4Gbit */
+	{
+		.name      = "W25N04LV",
+		.id        = {0xef, 0x8b, 0x23},
+		.id_len    = 3,
+		.chipsize  = _512M,
+		.erasesize = _256K,
+		.pagesize  = _4K,
+		.oobsize   = 256,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_esmt,
+		.flags = FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	/* Winbond W25N01KVxxIR 1Gbit */
 	{
 		.name      = "W25N01KV",
@@ -1468,6 +1493,34 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch = 1,
 	},
 
+	/* DS35Q4GB-IB: DS35X4GB Rev.06 Table 3.2 (3.3V E5h/B4h),
+	 * (2048+128)x64x4096, 8-bit/512B ECC (Table 3.6 @ C0h[6:4]).
+	 * Keep boot-critical FIP access in x1 mode; x2/x4 can be enabled after board validation.
+	 */
+	{
+		.name      = "DS35Q4GB-IB",
+		.id        = {0xe5, 0xb4},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0,
+		.ecc_en_mask = 1 << 4,
+		.ecc_status_offset = 0xc0,
+		.ecc_status_mask = 0x70,
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
 	/* FORESEE F35SQx001G 1Gbit */
 	{
 		.name      = "F35SQx001G",
@@ -1710,6 +1763,34 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.max_freq = SPI_NAND_FREQ_62MHz,
 		.sample_param = 0x40001000,
 		.xtal_switch = 1,
+	},
+
+	/* XinCun XCSP1AXPK-IT 1Gbit 3.3V */
+	{
+		.name         = "XCSP1AXPK-IT",
+		.id           = { 0x6C, 0x01 },
+		.id_len       = 2,
+		.chipsize     = _128M,
+		.erasesize    = _128K,
+		.pagesize     = _2K,
+		.oobsize      = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver       = &spi_nand_driver_gd,
+		.flags        = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT |
+				FLAGS_ENABLE_X4_BIT,
+		/* Configuration register (SR-2 at 0xB0), ECC_EN bit 4 */
+		.ecc_en_feature_offset = 0xb0,
+		.ecc_en_mask           = 1 << 4,
+		/* Status register (SR-3 at 0xC0), ECCS_[1:0] at bit 4-5 */
+		.ecc_status_offset     = 0xc0,
+		.ecc_status_mask       = 0x30,
+		.ecc_status_shift      = 4,
+		.ecc_status_uncorr_val = 0x2, /* 10b = uncorrectable */
+		.sck_l                 = 1,
+		.sck_h                 = 1,
+		.max_freq              = SPI_NAND_FREQ_62MHz,
+		.sample_param          = 0x40001000,
+		.xtal_switch           = 1,
 	},
 
 	{	.id_len    = 0,	},
