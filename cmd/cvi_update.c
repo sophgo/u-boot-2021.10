@@ -549,64 +549,77 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			#else
 			ret = _storage_update(sd_dl);
 			#endif
-			} else if (update_magic == USB_UPDATE_MAGIC) {
-				run_command("env default -a", 0);
-				usb_pid = 0;
-				ret = _usb_update(usb_pid);
-			} else if (env_get_ulong("ota_enable", 10, 0) != 0) {
+		} else if (update_magic == USB_UPDATE_MAGIC) {
+			run_command("env default -a", 0);
+			usb_pid = 0;
+			ret = _usb_update(usb_pid);
+		} else if (env_get_ulong("ota_enable", 10, 0) != 0) {
 #if !defined(CONFIG_ROOTFS_UBUNTU) && !defined(CONFIG_ROOTFS_DEBIAN)
-				ret = _storage_update(ota_dl);
-				if (!ret) {
-					run_command("setenv ota_enable 0;saveenv", 0);
-					run_command("reset", 0);
-				} else {
-					printf("ota update fail\n");
-				}
+			ret = _storage_update(ota_dl);
+			if (!ret) {
+				run_command("setenv ota_enable 0;saveenv", 0);
+				run_command("reset", 0);
+			} else {
+				printf("ota update fail\n");
+			}
 #endif
-			} else if (update_magic == UART_UPDATE_MAGIC) {
+		} else if (update_magic == UART_UPDATE_MAGIC) {
 				run_command("env default -a", 0);
 				ret = _uart_update();
-			} else {
+		} else {
 			#if defined(CONFIG_ROOTFS_UBUNTU) || defined(CONFIG_ROOTFS_DEBIAN)
-				char *devtype, *devnum, *distro_bootpart;
+			char *devtype, *devnum, *distro_bootpart;
 
 			run_command("usb start", 0);
 
 			ret = run_command("usb storage", 0);
-			if (ret)
-				return ret;
+			if (ret == 0) {
+				devtype = strdup(env_get("devtype"));
+				devnum = strdup(env_get("devnum"));
+				distro_bootpart = strdup(env_get("distro_bootpart"));
 
-			devtype = strdup(env_get("devtype"));
-			devnum = strdup(env_get("devnum"));
-			distro_bootpart = strdup(env_get("distro_bootpart"));
+				env_set("devtype", "usb");
+				env_set("devnum", "0");
+				env_set("distro_bootpart", "1");
+				if (ret)
+					goto usb_end;
 
-			env_set("devtype", "usb");
-			env_set("devnum", "0");
-			env_set("distro_bootpart", "0");
-			if (ret)
-				goto end;
+				ret = run_command
+					("load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /$ota_path/fip.bin",
+					0);
+				if (ret != 0)
+					goto usb_end;
 
-			ret = run_command
-				("load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} /$ota_path/fip.bin",
-				0);
-			if (ret != 0)
-				goto end;
+				printf("Start udisk downloading...");
+				ret = run_command("load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
+				if (ret != 0) {
+					printf("load from no partition udisk\n");
+					ret = run_command("load ${devtype} ${devnum} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
+				}
+usb_end:
+				env_set("devtype", devtype);
+				env_set("devnum", devnum);
+				env_set("distro_bootpart", distro_bootpart);
 
-			printf("Start udisk downloading...");
-			ret = run_command("load ${devtype} ${devnum}:${distro_bootpart} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
-			if (ret != 0) {
-				printf("load from no partition udisk\n");
-				ret = run_command("load ${devtype} ${devnum} ${scriptaddr} /$ota_path/boot.scr;source ${scriptaddr}", 0);
+				free(devtype);
+				free(devnum);
+				free(distro_bootpart);
 			}
-end:
-			env_set("devtype", devtype);
-			env_set("devnum", devnum);
-			env_set("distro_bootpart", distro_bootpart);
+		#if defined(CONFIG_AB_PARTITION)
+			// ab boot seclect
+			run_command("cvi_ab_select_slot boot_slot mmc 0:4", 0);
+			if (env_get("boot_slot") != NULL) {
+				if (strcmp(env_get("boot_slot"), "a") == 0)
+					env_set("distro_bootpart", "1");
+				else
+					env_set("distro_bootpart", "2");
+			}
 
-			free(devtype);
-			free(devnum);
-			free(distro_bootpart);
-
+			// reset wdt to 30s
+			run_command("wdt dev cv-wd@0x27000000", 0);
+			run_command("wdt stop", 0);
+			run_command("wdt start 30000", 0);
+		#endif
 			#else
 			ret = _udisk_update();
 			#endif

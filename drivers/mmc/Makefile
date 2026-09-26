@@ -80,4 +80,5 @@ obj-$(CONFIG_MMC_MTK)			+= mtk-sd.o
 obj-$(CONFIG_MMC_SDHCI_F_SDH30)		+= f_sdh30.o
 ifeq ($(CONFIG_MMC_SDHCI_CVITEK), y)
 obj-$(CONFIG_TARGET_CVITEK_CV186X) += cvitek/sdhci-cv186x.o
+obj-$(CONFIG_TARGET_CVITEK_CV84X6) += cvitek/sdhci-cv84x6.o
 endif

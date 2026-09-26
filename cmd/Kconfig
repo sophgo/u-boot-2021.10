@@ -1253,6 +1253,22 @@ config CMD_SATA
 	  Attachment, where AT refers to an IBM AT (Advanced Technology)
 	  computer released in 1984.
 
+config CMD_SATA_BIST
+	bool "sata_bist - SATA BIST loopback/transmit test"
+	depends on DWC_AHCI_CV84X6
+	help
+	  SATA BIST test command for cv84x6 DWC AHCI controller.
+	  Supports near-end analog loopback, far-end retimed loopback,
+	  and transmit-only pattern generation on all 4 SATA ports.
+
+config CMD_SATA_OOB
+	bool "sata_oob - SATA OOB (COMRESET/COMWAKE) trigger test"
+	depends on DWC_AHCI_CV84X6
+	help
+	  SATA OOB signalling trigger command for cv84x6 DWC AHCI controller.
+	  Generates COMRESET or COMWAKE out-of-band bursts on the wire for
+	  scope measurement on all 4 SATA ports.
+
 config CMD_SAVES
 	bool "saves - Save a file over serial in S-Record format"
 	help
@@ -2437,6 +2453,13 @@ config CMD_CVI_UPDATE
 	help
 	uboot will check flag in SRAM and thendecide if it's sd,usb,usb drive or Ethernet upgrade.
 	User can run cvi_update [usb/sd/eth] for force update without check flag.
+
+config CMD_CVI_AB_BOOT
+	bool "cvitek ab boot"
+	default n
+	help
+	  This is used by the new A/B update model where one slot is updated in the
+	  background while running from the other slot.
 
 config MMC_SPEED_MODE_SET
 	bool "set speed mode using mmc command"

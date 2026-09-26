@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+
-dtb-$(CONFIG_TARGET_CVITEK) += $(CHIP)_$(CVIBOARD).dtb \
+dtb-$(CONFIG_TARGET_CVITEK_CV84X6) += $(CHIP)_$(CVIBOARD).dtb
+
+dtb-$(CONFIG_TARGET_CVITEK_CV186X) += $(CHIP)_$(CVIBOARD).dtb \
 	cv186ah_se9b1_4G.dtb \
 	cv186ah_se9v1_4G.dtb \
 	cv186ah_se9b2_4G.dtb \
@@ -1149,3 +1151,4 @@ dtbs: $(addprefix $(obj)/, $(dtb-y))
 	@:
 
 clean-files := *.dtb *.dtbo *_HS
+dtb-$(CONFIG_ARCH_CV84X6) += cv84x6_wevb_emmc.dtb

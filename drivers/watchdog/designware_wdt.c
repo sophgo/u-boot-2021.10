@@ -187,7 +187,6 @@ static int designware_wdt_expire_now(struct udevice *dev, ulong flags)
 	return 0;
 }
 
-#if 0 // UNNEED
 static inline int enable_wdt_reset_system(void)
 {
 	void __iomem    *reg;
@@ -209,7 +208,6 @@ static inline int enable_wdt_reset_system(void)
 
 	return 0;
 }
-#endif
 
 static int designware_wdt_probe(struct udevice *dev)
 {
@@ -239,6 +237,7 @@ static int designware_wdt_probe(struct udevice *dev)
 #else
 	priv->clk_khz = CONFIG_DW_WDT_CLOCK_KHZ;
 #endif
+	enable_wdt_reset_system();
 
 	return 0;
 
