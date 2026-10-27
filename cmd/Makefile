@@ -73,6 +73,7 @@ obj-$(CONFIG_CMD_CVI_VO) += cvi_vo.o
 obj-$(CONFIG_CMD_CVI_UPDATE) += cvi_update.o
 obj-$(CONFIG_CMD_CVI_UPDATE) += cvi_utask.o
 obj-$(CONFIG_NAND_SUPPORT) += cvi_sd_update.o cvi_sd_update_spinand_v3.o
+obj-$(CONFIG_CMD_CVI_AB_BOOT) += cvi_ab_boot.o
 obj-$(CONFIG_CMD_FPGA) += fpga.o
 obj-$(CONFIG_CMD_FPGAD) += fpgad.o
 obj-$(CONFIG_CMD_FS_GENERIC) += fs.o
@@ -144,6 +145,8 @@ obj-$(CONFIG_CMD_ROCKUSB) += rockusb.o
 obj-$(CONFIG_CMD_RTC) += rtc.o
 obj-$(CONFIG_SANDBOX) += host.o
 obj-$(CONFIG_CMD_SATA) += sata.o
+obj-$(CONFIG_CMD_SATA_BIST) += sata_bist.o
+obj-$(CONFIG_CMD_SATA_OOB) += sata_oob.o
 obj-$(CONFIG_CMD_NVME) += nvme.o
 obj-$(CONFIG_SANDBOX) += sb.o
 obj-$(CONFIG_CMD_SF) += sf.o
@@ -209,7 +212,13 @@ obj-$(CONFIG_CMD_AVB) += avb.o
 # Foundries.IO SCP03
 obj-$(CONFIG_CMD_SCP03) += scp03.o
 
-obj-y += otp.o
+ifeq ($(CONFIG_SYS_BOARD),"cv186x")
+	obj-y += 88a2-otp.o
+	obj-y += 84x6-oem.o
+else ifeq ($(CONFIG_SYS_BOARD),"cv84x6")
+	obj-y += 84x6-otp.o
+	obj-y += 84x6-oem.o
+endif
 
 obj-$(CONFIG_ARM) += arm/
 obj-$(CONFIG_RISCV) += riscv/

@@ -76,7 +76,7 @@
  */
 static void *eqos_alloc_descs(struct eqos_priv *eqos, unsigned int num)
 {
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	// just use contiguous discriptor table
 	eqos->desc_size = sizeof(struct eqos_desc);
 	return (void *)noncached_alloc(num * eqos->desc_size, ARCH_DMA_MINALIGN);
@@ -89,7 +89,7 @@ static void *eqos_alloc_descs(struct eqos_priv *eqos, unsigned int num)
 
 static void eqos_free_descs(void *descs)
 {
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	// noncached_alloc has no counterpart
 #else
 	free(descs);
@@ -146,7 +146,7 @@ static int eqos_mdio_wait_idle(struct eqos_priv *eqos)
 				 1000000, false);
 }
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 static int eqos_mdio_read_direct(struct udevice *dev, int mdio_addr, int mdio_devad, int mdio_reg)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
@@ -318,7 +318,7 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 static int eqos_start_clks_bm(struct udevice *dev)
 {
 	return 0;
@@ -417,7 +417,7 @@ static int eqos_set_mii_speed_10(struct udevice *dev)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 static int eqos_set_tx_clk_speed_bm(struct udevice *dev)
 {
 	return 0;
@@ -614,7 +614,7 @@ static int eqos_start(struct udevice *dev)
 	rate = eqos->config->ops->eqos_get_tick_clk_rate(dev);
 
 	val = (rate / 1000000) - 1;
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	writel(val, &eqos->mac_regs->us_tic_counter);
 #endif
 	/*
@@ -831,7 +831,7 @@ static int eqos_start(struct udevice *dev)
 
 	/* DMA performance configuration */
 	val = (2 << EQOS_DMA_SYSBUS_MODE_RD_OSR_LMT_SHIFT) |
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 		EQOS_DMA_SYSBUS_MODE_ONEKBBE |
 #endif
 		EQOS_DMA_SYSBUS_MODE_EAME | EQOS_DMA_SYSBUS_MODE_BLEN16 |
@@ -853,7 +853,7 @@ static int eqos_start(struct udevice *dev)
 
 		rx_desc->des0 = (u32)(ulong)(eqos->rx_dma_buf +
 					     (i * EQOS_MAX_PACKET_SIZE));
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 		rx_desc->des1 = (ulong)(eqos->rx_dma_buf +
 					(i * EQOS_MAX_PACKET_SIZE)) >> 32;
 #endif
@@ -866,7 +866,7 @@ static int eqos_start(struct udevice *dev)
 						EQOS_MAX_PACKET_SIZE);
 	}
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	writel((ulong)eqos_get_desc(eqos, 0, false) >> 32,
 	       &eqos->dma_regs->ch0_txdesc_list_haddress);
 #else
@@ -877,7 +877,7 @@ static int eqos_start(struct udevice *dev)
 	writel(EQOS_DESCRIPTORS_TX - 1,
 	       &eqos->dma_regs->ch0_txdesc_ring_length);
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	writel((ulong)eqos_get_desc(eqos, 0, true) >> 32,
 	       &eqos->dma_regs->ch0_rxdesc_list_haddress);
 #else
@@ -991,7 +991,7 @@ static int eqos_send(struct udevice *dev, void *packet, int length)
 	eqos->tx_desc_idx %= EQOS_DESCRIPTORS_TX;
 
 	tx_desc->des0 = (ulong)eqos->tx_dma_buf;
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	tx_desc->des1 = (ulong)eqos->tx_dma_buf >> 32;
 #else
 	tx_desc->des1 = 0;
@@ -1071,7 +1071,7 @@ static int eqos_free_pkt(struct udevice *dev, uchar *packet, int length)
 	eqos->config->ops->eqos_flush_desc(rx_desc);
 	eqos->config->ops->eqos_inval_buffer(packet, length);
 	rx_desc->des0 = (u32)(ulong)packet;
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	rx_desc->des1 = (ulong)packet >> 32;
 #else
 	rx_desc->des1 = 0;
@@ -1164,7 +1164,7 @@ static int eqos_remove_resources_core(struct udevice *dev)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 static int eqos_mdio_register(struct udevice *dev)
 {
 	struct eqos_priv *eqos = dev_get_priv(dev);
@@ -1389,7 +1389,7 @@ static int eqos_probe(struct udevice *dev)
 		goto err_remove_resources_core;
 	}
 
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	ret = eqos_mdio_register(dev);
 	if (ret < 0) {
 		printf("eqos_mdio_register() failed: %d", ret);
@@ -1480,7 +1480,7 @@ static const struct eth_ops eqos_ops = {
 	.read_rom_hwaddr	= eqos_read_rom_hwaddr,
 };
 
-#if defined(CONFIG_TARGET_CVITEK_CV186X)
+#if defined(CONFIG_TARGET_CVITEK_CV186X) || defined(CONFIG_TARGET_CVITEK_CV84X6)
 static struct eqos_ops eqos_bm_ops = {
 	.eqos_inval_desc = eqos_inval_desc_generic,
 	.eqos_flush_desc = eqos_flush_desc_generic,
@@ -1513,7 +1513,7 @@ static const struct eqos_config eqos_bm_config = {
 #endif
 
 static const struct udevice_id eqos_ids[] = {
-#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X)
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X) || IS_ENABLED(CONFIG_TARGET_CVITEK_CV84X6)
 	{
 		.compatible = "bitmain,ethernet",
 		.data = (ulong)&eqos_bm_config

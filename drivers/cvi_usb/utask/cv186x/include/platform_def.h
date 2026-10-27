@@ -13,6 +13,8 @@
 #include <../../../board/cvitek/cv1822/cv1822_reg.h>
 #elif defined(CONFIG_TARGET_CVITEK_CV186X)
 #include <../../../board/cvitek/cv186x/cv186x_reg.h>
+#elif defined(CONFIG_TARGET_CVITEK_CV84X6)
+#include <../../../board/cvitek/cv84x6/cv84x6_reg.h>
 #else
 #error "use cvi_utask at wrong platform"
 #endif

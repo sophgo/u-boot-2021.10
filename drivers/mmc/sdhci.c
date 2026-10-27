@@ -559,6 +559,7 @@ void sdhci_set_uhs_timing(struct sdhci_host *host)
 		reg |= SDHCI_CTRL_UHS_SDR104;
 		break;
 	case MMC_HS_400:
+	case MMC_HS_400_ES:
 		reg |= SDHCI_CTRL_HS400;
 		break;
 	default:
@@ -824,6 +825,28 @@ static int sdhci_deferred_probe(struct udevice *dev)
 	return 0;
 }
 
+static int sdhci_host_power_cycle(struct udevice *dev)
+{
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+
+	/* eMMC is non-removable and reset via its own reset line; only
+	 * power-cycle removable slots (SD/SDIO) here.
+	 */
+	if (mmc->cfg->host_caps & MMC_CAP_NONREMOVABLE)
+		return 0;
+
+	/* Drop bus power, wait for the rail to fall, then re-apply it so the
+	 * card is in a clean reset state before CMD0/CMD8/ACMD41.
+	 */
+	sdhci_set_power(host, (unsigned short)-1);
+	mdelay(50);
+	sdhci_set_power(host, fls(mmc->cfg->voltages) - 1);
+	mdelay(10);
+
+	return 0;
+}
+
 static int sdhci_get_cd(struct udevice *dev)
 {
 	struct mmc *mmc = mmc_get_mmc_dev(dev);
@@ -856,10 +879,37 @@ static int sdhci_get_cd(struct udevice *dev)
 		return value;
 }
 
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+static int sdhci_set_enhanced_strobe(struct udevice *dev)
+{
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+
+	if (host->ops && host->ops->set_enhanced_strobe)
+		return host->ops->set_enhanced_strobe(host);
+
+	return -ENOTSUPP;
+}
+#endif
+
+#if CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
+static int sdhci_hs400_prepare_ddr(struct udevice *dev)
+{
+	struct mmc *mmc = mmc_get_mmc_dev(dev);
+	struct sdhci_host *host = mmc->priv;
+
+	if (host->ops && host->ops->hs400_prepare_ddr)
+		return host->ops->hs400_prepare_ddr(host);
+
+	return 0;
+}
+#endif
+
 const struct dm_mmc_ops sdhci_ops = {
 	.send_cmd	= sdhci_send_command,
 	.set_ios	= sdhci_set_ios,
 	.get_cd		= sdhci_get_cd,
+	.host_power_cycle = sdhci_host_power_cycle,
 	.deferred_probe	= sdhci_deferred_probe,
 #ifdef CONFIG_MMC_SUPPORTS_TUNING
 	.execute_tuning = sdhci_execute_tuning,
@@ -867,6 +917,12 @@ const struct dm_mmc_ops sdhci_ops = {
 	.wait_dat0 = sdhci_card_busy,
 #ifdef CONFIG_MMC_UHS_SUPPORT
 	.set_voltage = sdhci_set_voltage,
+#endif
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+	.set_enhanced_strobe = sdhci_set_enhanced_strobe,
+#endif
+#if CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
+	.hs400_prepare_ddr = sdhci_hs400_prepare_ddr,
 #endif
 };
 #else

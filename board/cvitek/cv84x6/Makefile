@@ -1,0 +1,2 @@
+
+obj-$(CONFIG_TARGET_CVITEK_CV84X6)	:= board.o

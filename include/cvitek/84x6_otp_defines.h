@@ -1,0 +1,42 @@
+#ifndef CVI_OTP_DEFINES_H
+#define CVI_OTP_DEFINES_H
+
+typedef enum _CVI_OTP_AREA_E {
+	CVI_OTP_AREA_HASH0_PUBLIC = 0,
+	CVI_OTP_AREA_DBG_PWD,
+	CVI_OTP_AREA_LOADER_EK,
+	CVI_OTP_AREA_DEVICE_EK,
+	CVI_OTP_AREA_CUSTOMER_SECURE_KEY0,
+	CVI_OTP_AREA_CUSTOMER_SECURE_KEY1,
+	CVI_OTP_AREA_CUSTOMER_SECURE_KEY2,
+	CVI_OTP_AREA_CUSTOMER_SECURE_KEY3,
+	CVI_OTP_AREA_LAST
+} CVI_OTP_AREA_E;
+
+static struct _CVI_OTP_AREA_S {
+	const char *name;
+	uint32_t addr;
+	uint32_t size;
+	uint32_t lock_offset;
+	uint32_t wlock_shift;
+	uint32_t rlock_shift;
+} cvi_otp_areas[] = { [CVI_OTP_AREA_HASH0_PUBLIC] = { "HASH0_PUBLIC", 0x1A8, 32, 0x1F8, 0, 8 },
+		[CVI_OTP_AREA_DBG_PWD] = { "DBG_PWD", 0x1C8, 16, 0x1F8, 2, 10 },
+		[CVI_OTP_AREA_LOADER_EK] = { "LOADER_EK", 0x1D8, 16, 0x1F8, 4, 12 },
+		[CVI_OTP_AREA_DEVICE_EK] = { "DEVICE_EK", 0x1E8, 16, 0x1F8, 6, 14 },
+		[CVI_OTP_AREA_CUSTOMER_SECURE_KEY0] = { "CUSTOMER_SECURE_KEY0", 0x80, 32, 0x174, 0, -1 },
+		[CVI_OTP_AREA_CUSTOMER_SECURE_KEY1] = { "CUSTOMER_SECURE_KEY1", 0xA0, 32, 0x174, 1, -1 },
+		[CVI_OTP_AREA_CUSTOMER_SECURE_KEY2] = { "CUSTOMER_SECURE_KEY2", 0xC0, 32, 0x174, 2, -1 },
+		[CVI_OTP_AREA_CUSTOMER_SECURE_KEY3] = { "CUSTOMER_SECURE_KEY3", 0xE0, 32, 0x174, 3, -1 },
+		};
+
+// for secure boot
+#define CVI_OTP_SCS_CONFIG_LINE                        104
+#define CVI_OTP_TEE_SCS_ENABLE_SHIFT                   2
+#define CVI_OTP_ROOT_PUBLIC_KEY_SELECTION_SHIFT        20
+#define CVI_OTP_BOOT_LOADER_ENCRYPTION                 6
+#define CVI_OTP_LDR_KEY_SELECTION_SHIFT                23
+
+// for jtag gate
+#define CVI_OTP_JTAG_GATE_LINE                         103
+#endif

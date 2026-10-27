@@ -40,6 +40,7 @@ struct dwc3_device {
 	unsigned tx_de_emphasis_quirk;
 	unsigned tx_de_emphasis;
 	int index;
+	unsigned int susp_clk;
 };
 
 int soph_dwc3_uboot_init(struct dwc3_device *dev);

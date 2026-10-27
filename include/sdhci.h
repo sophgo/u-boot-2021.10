@@ -169,7 +169,7 @@
 #define  SDHCI_CTRL_UHS_SDR50	0x0002
 #define  SDHCI_CTRL_UHS_SDR104	0x0003
 #define  SDHCI_CTRL_UHS_DDR50	0x0004
-#define  SDHCI_CTRL_HS400	0x0005 /* Non-standard */
+#define  SDHCI_CTRL_HS400	0x0007 /* DWC_mshc: UHS_MODE_SEL=7 for HS400 */
 #define  SDHCI_CTRL_VDD_180	0x0008
 #define  SDHCI_CTRL_DRV_TYPE_MASK	0x0030
 #define  SDHCI_CTRL_DRV_TYPE_B	0x0000
@@ -288,6 +288,12 @@ struct sdhci_ops {
 	int	(*deferred_probe)(struct sdhci_host *host);
 	void (*reset)(struct sdhci_host *host, u8 mask);
 	void (*voltage_switch)(struct mmc *mmc);
+#if CONFIG_IS_ENABLED(MMC_HS400_ES_SUPPORT)
+	int (*set_enhanced_strobe)(struct sdhci_host *host);
+#endif
+#if CONFIG_IS_ENABLED(MMC_HS400_SUPPORT)
+	int (*hs400_prepare_ddr)(struct sdhci_host *host);
+#endif
 };
 
 #define ADMA_MAX_LEN	65532

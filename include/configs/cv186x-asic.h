@@ -11,11 +11,15 @@
 #include <../../../board/cvitek/cv186x/cv186x_reg.h>
 
 /* defined in cvipart.h */
+#if !defined(CONFIG_AB_PARTITION)
 #undef CONFIG_ENV_OFFSET
+#endif
 #undef CONFIG_ENV_OFFSET_REDUND
 #undef CONFIG_ENV_SIZE
 #undef CONFIG_ENV_IS_IN_SPI_FLASH
+#if !defined(CONFIG_AB_PARTITION)
 #undef CONFIG_ENV_IS_IN_MMC
+#endif
 #undef CONFIG_ENV_IS_IN_NAND
 #undef CONFIG_ENV_SECT_SIZE
 
@@ -351,8 +355,11 @@
 			#elif defined(CONFIG_SATA_BOOT)
 				#define CONFIG_BOOTCOMMAND                                                     \
 					"cvi_update || scsi scan; load scsi 0:1 ${scriptaddr} boot.scr.sata; source ${scriptaddr}"
+			#elif defined(CONFIG_AB_PARTITION)
+				#define CONFIG_BOOTCOMMAND							\
+					"cvi_update || load mmc 0:${distro_bootpart} ${scriptaddr} boot.scr.emmc; source ${scriptaddr} || run ramboot"
 			#else	//default eMMC
-				#define CONFIG_BOOTCOMMAND                                                     \
+				#define CONFIG_BOOTCOMMAND							\
 					"cvi_update || load mmc 0:1 ${scriptaddr} boot.scr.emmc; source ${scriptaddr} || run ramboot"
 			#endif
 		#endif

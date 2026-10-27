@@ -406,7 +406,9 @@ static int m88e151x_config(struct phy_device *phydev)
 /* Marvell 88E1118 */
 static int m88e1118_config(struct phy_device *phydev)
 {
+#if IS_ENABLED(CONFIG_TARGET_CVITEK_CV186X_FPGA)
 	u16 reg = 0;
+#endif
 	/* Change Page Number */
 	phy_write(phydev, MDIO_DEVAD_NONE, MIIM_88E1118_PHY_PAGE, 0x0002);
 	/* Delay RGMII TX and RX */

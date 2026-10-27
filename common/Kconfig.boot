@@ -738,6 +738,12 @@ config NVME_BOOT
 	  booted via NVME SSD. This is not a must, some SoCs need this,
 	  some not.
 
+config AB_PARTITION
+	bool "Boot AB Partition"
+        default n
+	help
+	  This option is used for boot AB partition.
+
 endmenu
 
 menu "Autoboot options"
