@@ -313,6 +313,8 @@
 
 	#ifdef CONFIG_ENABLE_ALIOS_UPDATE
 		#define CONFIG_BOOTCOMMAND	"cvi_update_rtos"
+	#elif defined(CONFIG_ENABLE_RTT_UPDATE)
+		#define CONFIG_BOOTCOMMAND	"cvi_update_rtt"
 	#elif CONFIG_SD_BOOT
 		#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "run sdboot"
 	#else

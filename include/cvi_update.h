@@ -31,4 +31,14 @@ enum storage_type_e { sd_dl = 0, usb_dl };
 
 int _prgImage(char *file, uint32_t chunk_header_size, char *file_name);
 
+#ifdef CONFIG_ENABLE_RTT_UPDATE
+struct cmd_tbl;
+int do_cvi_update_rtt(struct cmd_tbl *cmdtp, int flag, int argc,
+		      char *const argv[]);
+#endif
+
+#if defined(CONFIG_ENABLE_RTT_UPDATE) && defined(CONFIG_NAND_SUPPORT)
+int cvi_update_rtt_usb_program(void);
+#endif
+
 #endif /* __CVI_UPDATE_H__ */

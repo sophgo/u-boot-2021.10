@@ -17,6 +17,9 @@
 #include <fs.h>
 #include <stdlib.h>
 
+/* Exported for cvi_update_rtt.c, which shares this image name list. */
+const int imgs_count = ARRAY_SIZE(imgs);
+
 #define HEADER_SIZE 64
 #ifdef CONFIG_CMD_SAVEENV
 #define SET_DL_COMPLETE()			\
@@ -33,20 +36,6 @@ static uint32_t lastend;
 #endif
 
 uint32_t update_magic;
-
-#ifdef CONFIG_ENABLE_RTT_UPDATE
-
-#define MAX_LABELS 32
-
-enum parse_state {
-	STATE_SEARCH_TAG,
-	STATE_IN_PARTITION,
-	STATE_READ_LABEL
-};
-
-static char img_files[MAX_LABELS][128] = {0};
-static int img_file_cnt;
-#endif
 
 #if (!defined CONFIG_TARGET_CVITEK_CV181X_FPGA) && (!defined CONFIG_TARGET_CVITEK_ATHENA2_FPGA)
 static uint32_t bcd2hex4(uint32_t bcd)
@@ -195,147 +184,6 @@ static int _checkHeader(char *file, char strStorage[10])
 	return 0;
 }
 
-#ifdef CONFIG_ENABLE_RTT_UPDATE
-static void parse_xml(char *xml)
-{
-	enum parse_state state = STATE_SEARCH_TAG;
-	char *ptr = xml;
-	int quote_count = 0;
-	int label_idx;
-
-	while (*ptr && img_file_cnt < MAX_LABELS) {
-		switch (state) {
-		case STATE_SEARCH_TAG:
-			if (strncmp(ptr, "<partition", 10) == 0) {
-				state = STATE_IN_PARTITION;
-				ptr += 10;
-			}
-			break;
-
-		case STATE_IN_PARTITION:
-			if (strncmp(ptr, "file=", 4) == 0) {
-				state = STATE_READ_LABEL;
-				ptr += 4;
-				quote_count = 0;
-				label_idx = 0;
-			}
-			break;
-
-		case STATE_READ_LABEL:
-			if (*ptr == '"' && ++quote_count == 2) {
-				state = STATE_SEARCH_TAG;
-				img_files[img_file_cnt][label_idx] = '\0';
-				img_file_cnt++;
-			} else if (*ptr != '"' && quote_count == 1) {
-				img_files[img_file_cnt][label_idx++] = *ptr;
-			}
-			break;
-		}
-		ptr++;
-	}
-}
-
-int read_parse_xml(int dev_num, int part_num)
-{
-	struct blk_desc *mmc_dev;
-
-	blk_select_hwpart_devnum(IF_TYPE_MMC, dev_num, part_num);
-
-	#define BUF_SIZE 2048
-	static char *xml_buf;
-	loff_t file_size;
-
-	xml_buf = (char *)malloc(BUF_SIZE);
-	if (!xml_buf) {
-		printf("failed to malloc xml_buf\n");
-		return -ENOMEM;
-	}
-
-	mmc_dev = blk_get_devnum_by_type(IF_TYPE_MMC, dev_num);
-
-	if (fs_set_blk_dev_with_part(mmc_dev, part_num)) {
-		printf("failed to mount sd card\n");
-		return -1;
-	}
-
-	if (fs_read("partition_spinor.xml", (ulong)xml_buf, 0, BUF_SIZE, &file_size)) {
-		printf("failed to read partition_spinor.xml\n");
-		return -1;
-	}
-
-	if (strstr(xml_buf, "<physical_partition") == NULL) {
-		printf("invaled file format\n");
-		return -EINVAL;
-	}
-
-	parse_xml(xml_buf);
-
-	return 0;
-}
-
-static int _storage_update_rtt(enum storage_type_e type)
-{
-
-	int ret = 0;
-	char cmd[255] = { '\0' };
-	char strStorage[10] = { '\0' };
-	uint8_t sd_index = 0;
-
-	if (type == sd_dl) {
-		printf("Start SD downloading...\n");
-		// Consider SD card with MBR as default
-#if defined(CONFIG_NAND_SUPPORT) || defined(CONFIG_SPI_FLASH)
-		strlcpy(strStorage, "mmc 0:1", 9);
-		sd_index = 0;
-#elif defined(CONFIG_EMMC_SUPPORT)
-		sd_index = 1;
-		strlcpy(strStorage, "mmc 1:1", 9);
-#endif
-		snprintf(cmd, 255, "mmc dev %u:1 SD_HS", sd_index);
-		run_command(cmd, 0);
-		}
-
-#if defined(CONFIG_NAND_SUPPORT)
-		snprintf(cmd, 255, "cvi_sd_update %p spinand fip",
-			 (void *)HEADER_ADDR);
-		ret = run_command(cmd, 0);
-#elif defined(CONFIG_SPI_FLASH)
-		run_command("sf probe", 0);
-#elif defined(CONFIG_EMMC_SUPPORT)
-		// Switch to boot partition
-		run_command("mmc dev 0 1", 0);
-		snprintf(cmd, 255, "mmc write %p 0 0x800;",
-			 (void *)HEADER_ADDR);
-		run_command(cmd, 0);
-		snprintf(cmd, 255, "mmc write %p 0x800 0x800;;",
-			 (void *)HEADER_ADDR);
-		ret = run_command(cmd, 0);
-		printf("Program fip.bin done\n");
-		// Switch to user partition
-		run_command("mmc dev 0 0", 0);
-#endif
-
-		SET_DL_COMPLETE();
-
-	read_parse_xml(sd_index, 1);
-
-	for (int i = 0; i < img_file_cnt; i++) {
-		snprintf(cmd, 255, "fatload %s %p %s 0x%x 0;", strStorage,
-			 (void *)HEADER_ADDR, img_files[i], HEADER_SIZE);
-		pr_debug("%s\n", cmd);
-		ret = run_command(cmd, 0);
-		if (ret) {
-			printf("load %s failed, skip it!\n", img_files[i]);
-			continue;
-		}
-		if (_checkHeader(img_files[i], strStorage))
-			continue;
-	}
-	return 0;
-}
-#endif
-
-#ifndef CONFIG_ENABLE_RTT_UPDATE
 static int _storage_update(enum storage_type_e type)
 {
 	int ret = 0;
@@ -429,14 +277,11 @@ static int _storage_update(enum storage_type_e type)
 	}
 	return 0;
 }
-#endif
 
 static int _usb_update(uint32_t usb_pid)
 {
 	int ret = 0;
-#ifndef CONFIG_ENABLE_RTT_UPDATE
 	char cmd[255] = { '\0' };
-#endif
 	char utask_cmd[255] = { '\0' };
 
 	printf("Start USB downloading...\n");
@@ -445,23 +290,19 @@ static int _usb_update(uint32_t usb_pid)
 	writel(0x0, (unsigned int *)BOOT_SOURCE_FLAG_ADDR); //mw.l 0xe00fc00 0x0;
 	// Always download Fip first
 	snprintf(utask_cmd, 255, "cvi_utask vid 0x3346 pid 0x%x", usb_pid);
-#ifndef CONFIG_ENABLE_RTT_UPDATE
 	ret = run_command(utask_cmd, 0);
-#endif
 #ifdef CONFIG_NAND_SUPPORT
 	snprintf(cmd, 255, "cvi_sd_update %p spinand fip", (void *)UPDATE_ADDR);
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);
 #elif defined(CONFIG_SPI_FLASH)
 	ret = run_command("sf probe", 0);
-#ifndef CONFIG_ENABLE_RTT_UPDATE
 	if (env_get("flash_erased"))
 		snprintf(cmd, 255, "sf write %p ${fip_PART_OFFSET} ${filesize};", (void *)UPDATE_ADDR);
 	else
 		snprintf(cmd, 255, "sf update %p ${fip_PART_OFFSET} ${fip_PART_SIZE};", (void *)UPDATE_ADDR);
 	pr_debug("%s\n", cmd);
 	ret = run_command(cmd, 0);
-#endif
 #else
 	// Switch to boot partition
 	run_command("mmc dev 0 1", 0);
@@ -622,6 +463,10 @@ static int _uart_update(void)
 static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char *const argv[])
 {
+#ifdef CONFIG_ENABLE_RTT_UPDATE
+	/* Select the updater from this firmware, not the saved bootcmd. */
+	return do_cvi_update_rtt(cmdtp, flag, argc, argv);
+#endif
 
 #if (!defined CONFIG_TARGET_CVITEK_CV181X_FPGA) && (!defined CONFIG_TARGET_CVITEK_ATHENA2_FPGA)
 	int ret = 1;
@@ -634,11 +479,7 @@ static int do_cvi_update(struct cmd_tbl *cmdtp, int flag, int argc,
 			ret = _uart_update();
 		} else if (update_magic == SD_UPDATE_MAGIC) {
 			run_command("env default -a", 0);
-#ifdef CONFIG_ENABLE_RTT_UPDATE
-			ret = _storage_update_rtt(sd_dl);
-#else
 			ret = _storage_update(sd_dl);
-#endif
 		} else if (update_magic == USB_UPDATE_MAGIC) {
 			#ifdef CONFIG_CHECK_USB_PLUG
 			if (cvi_get_chg_plug() != CHG_PLUG_HUB) {

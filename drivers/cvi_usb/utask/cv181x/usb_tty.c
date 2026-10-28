@@ -710,7 +710,7 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 	uint8_t ack_result[16];
 	uint32_t sn_hi, sn_lo;
 #endif // USB_RW_EFUSE
-#ifdef CONFIG_NAND_SUPPORT
+#if defined(CONFIG_NAND_SUPPORT) && !defined(CONFIG_ENABLE_RTT_UPDATE)
 	char cmd[255] = { '\0' };
 	static char prevExtra[EXTRA_FLAG_SIZE + 1] = { '\0' };
 #endif
@@ -743,7 +743,7 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 		{
 			resetOutReqS2D(dest_addr, msg_s2d->size, bulkResetOutReq);
 
-#ifdef CONFIG_NAND_SUPPORT
+#if defined(CONFIG_NAND_SUPPORT) && !defined(CONFIG_ENABLE_RTT_UPDATE)
 			// Erase partition first
 			if (!strncmp((char *)((uintptr_t)HEADER_ADDR), "CIMG", 4)) {
 				strlcpy(prevExtra,
@@ -801,7 +801,15 @@ static void bulkOutCmplMain(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case CVI_USB_PROGRAM:
 		/* INFO("CVI_USB_PROGRAM\n"); */
+#if defined(CONFIG_ENABLE_RTT_UPDATE) && defined(CONFIG_NAND_SUPPORT)
+		if (cvi_update_rtt_usb_program()) {
+			ERROR("USB NAND programming failed\n");
+			usb_ep_set_halt(epIn);
+			return;
+		}
+#else
 		_prgImage((void *)UPDATE_ADDR, 0x40, NULL);
+#endif
 		sendInReq(length, CVI_USB_PROGRAM, bulkResetOutReq, NULL, 0);
 		NOTICE("CVI_USB_PROGRAM done\n");
 		return;

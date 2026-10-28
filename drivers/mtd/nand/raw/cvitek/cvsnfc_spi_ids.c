@@ -179,6 +179,17 @@ static struct spi_nand_driver spi_nand_driver_mxic = {
 	.qe_enable = spi_nand_qe_enable,
 };
 
+static struct spi_nand_driver spi_nand_driver_gsto = {
+	.wait_ready = spi_general_wait_ready,
+	.write_enable = spi_general_write_enable,
+};
+
+static struct spi_nand_driver spi_nand_driver_zbit = {
+	.wait_ready = spi_general_wait_ready,
+	.write_enable = spi_general_write_enable,
+	.qe_enable = spi_nand_qe_enable,
+};
+
 /*****************************************************************************/
 #define SPI_NAND_ID_TAB_VER		"1.3"
 
@@ -1342,30 +1353,6 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 	},
 
 	{
-		.name      = "XT26G12D",
-		.id        = {0x0b, 0x35},
-		.id_len    = 2,
-		.chipsize  = _256M,
-		.erasesize = _128K,
-		.pagesize  = _2K,
-		.oobsize   = 128,
-		.badblock_pos = BBP_FIRST_PAGE,
-		.driver    = &spi_nand_driver_gd,
-		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
-		.ecc_en_feature_offset = 0xb0, /* Configuration register */
-		.ecc_en_mask = 1 << 4, /* bit 4 */
-		.ecc_status_offset = 0xc0, /* Status register */
-		.ecc_status_mask = 0x30, /* bit 4 & 5 */
-		.ecc_status_shift = 4,
-		.ecc_status_uncorr_val = 0x2,
-		.sck_l = 1,
-		.sck_h = 0,
-		.max_freq = SPI_NAND_FREQ_62MHz,
-		.sample_param = 0x40001000,
-		.xtal_switch = 1,
-	},
-
-	{
 		.name      = "XT26G01DWSIGA",
 		.id        = {0x0b, 0x31},
 		.id_len    = 2,
@@ -1785,6 +1772,663 @@ struct cvsnfc_chip_info cvsnfc_spi_nand_flash_table[] = {
 		.xtal_switch           = 1,
 	},
 
+	{
+		.name      = "UM19A1HISW",
+		.id        = {0xB0, 0x24},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_unim,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register ecc enable*/
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x70, /* bit 4, 5 & 6 (3-bit ECCS field) */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
+	{
+		.name      = "DS35Q4GB-IB",
+		.id        = {0xe5, 0xb4},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0,
+		.ecc_en_mask = 1 << 4,
+		.ecc_status_offset = 0xc0,
+		.ecc_status_mask = 0x70,
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "F35SQB002G",
+		.id        = {0xcd, 0x52, 0x52},
+		.id_len    = 3,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x70, /* bit 4 & 5 & 6*/
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x7,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "F35SQx001G",
+		.id        = {0xcd, 0x71, 0x71},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "GD5F1GQ4R",
+		.id        = {0xc8, 0xa1, 0x48},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "GD5F1GQ4R",
+		.id        = {0xc8, 0xc1},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "GD5F1GQ4U",
+		.id        = {0xc8, 0xb1, 0x48},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "GD5F1GQ4xExxH",
+		.id        = {0xc8, 0xd9},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "GD5F2GQ5UExxH",
+		.id        = {0xc8, 0x52},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "GSS01GSAX1-W8NMI0",
+		.id        = {0x52, 0xca, 0x13},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gsto,
+		.flags =  FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "TC58CVG1S0HRAIJ",
+		.id        = {0x98, 0xeb, 0x40},
+		.id_len    = 3,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_toshiba,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xf0, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "TC58CVG1S3HxAI",
+		.id        = {0x98, 0xcb},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_toshiba,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xf0, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name         = "UM19C0HISW",
+		.id           = { 0xB0, 0x1C },
+		.id_len       = 2,
+		.chipsize     = _128M,
+		.erasesize    = _128K,
+		.pagesize     = _2K,
+		.oobsize      = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver       = &spi_nand_driver_gd,
+		.flags        = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT |
+				 FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask           = 1 << 4, /* bit 4 */
+		.ecc_status_offset     = 0xc0, /* Status register */
+		.ecc_status_mask       = 0x70, /* bit 4 & 5 & 6*/
+		.ecc_status_shift      = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l                 = 1,
+		.sck_h                 = 1,
+		.max_freq              = SPI_NAND_FREQ_62MHz,
+		.sample_param          = 0x40001000,
+		.xtal_switch           = 1,
+	},
+	{
+		.name      = "W25N01GV",
+		.id        = {0xef, 0xaa, 0x21},
+		.id_len    = 3,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_esmt,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "XCSP1AAPK",
+		.id        = {0x8C, 0x1},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "XCSP2AAPK",
+		.id        = {0x8C, 0xA1},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+			.name         = "XCSP2AAPK-IT",
+		.id           = { 0x8C, 0xA1 },
+		.id_len       = 2,
+		.chipsize     = _256M,
+		.erasesize    = _128K,
+		.pagesize     = _2K,
+		.oobsize      = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver       = &spi_nand_driver_zbit,
+		.flags        = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT |
+				 FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask           = 1 << 4, /* bit 4 */
+		.ecc_status_offset     = 0xc0, /* Status register */
+		.ecc_status_mask       = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift      = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l                 = 1,
+		.sck_h                 = 1,
+		.max_freq              = SPI_NAND_FREQ_62MHz,
+		.sample_param          = 0x40001000,
+		.xtal_switch           = 1,
+	},
+	{
+		.name      = "XT26G04CWSIGA",
+		.id        = {0x0b, 0x13},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _256K,
+		.pagesize  = _4K,
+		.oobsize   = 256,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xF0, /* bit 4 & 5 & 6 & 7 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0xF,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "XT26G04D",
+		.id        = {0x0b, 0x33},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _256K,
+		.pagesize  = _4K,
+		.oobsize   = 256,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_xtx,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xF0, /* bit 4 & 5 & bit 6 & bit 7 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "XT26G12D-B",
+		.id        = {0x0b, 0x35},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "XT26G12D-X",
+		.id        = {0x0b, 0x35},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0xf0, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "ZB35Q01CY1G",
+		.id        = {0x5E, 0xC1},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_zbit,
+		.flags =  FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "ZB35Q01CYIG",
+		.id        = {0x5E, 0xC1},
+		.id_len    = 2,
+		.chipsize  = _128M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_zbit,
+		.flags =  FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "ZB35Q02CY1G",
+		.id        = {0x5E, 0xC2},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "ZB35Q02CYIG",
+		.id        = {0x5E, 0xC2},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_zbit,
+		.flags =  FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+	{
+		.name      = "ZB35Q04CY1G",
+		.id        = {0x5E, 0xC3},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+
+	},
+	{
+		.name      = "ZB35Q04CYIG",
+		.id        = {0x5E, 0xC3},
+		.id_len    = 2,
+		.chipsize  = _512M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 64,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_zbit,
+		.flags =  FLAGS_SET_QE_BIT | FLAGS_ENABLE_X2_BIT | FLAGS_ENABLE_X4_BIT,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 1,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
+
+	{
+		.name      = "XT26G12D",
+		.id        = {0x0b, 0x35},
+		.id_len    = 2,
+		.chipsize  = _256M,
+		.erasesize = _128K,
+		.pagesize  = _2K,
+		.oobsize   = 128,
+		.badblock_pos = BBP_FIRST_PAGE,
+		.driver    = &spi_nand_driver_gd,
+		.flags = 0,
+		.ecc_en_feature_offset = 0xb0, /* Configuration register */
+		.ecc_en_mask = 1 << 4, /* bit 4 */
+		.ecc_status_offset = 0xc0, /* Status register */
+		.ecc_status_mask = 0x30, /* bit 4 & 5 */
+		.ecc_status_shift = 4,
+		.ecc_status_uncorr_val = 0x2,
+		.sck_l = 1,
+		.sck_h = 0,
+		.max_freq = SPI_NAND_FREQ_62MHz,
+		.sample_param = 0x40001000,
+		.xtal_switch = 1,
+	},
 	{	.id_len    = 0,	},
 };
 

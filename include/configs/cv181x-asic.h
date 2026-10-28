@@ -327,6 +327,8 @@
 	#ifndef CONFIG_SD_BOOT
 		#ifdef CONFIG_ENABLE_ALIOS_UPDATE
 			#define CONFIG_BOOTCOMMAND	"cvi_update_rtos"
+		#elif defined(CONFIG_ENABLE_RTT_UPDATE)
+			#define CONFIG_BOOTCOMMAND	"cvi_update"
 		#else
 			#define CONFIG_BOOTCOMMAND	SHOWLOGOCMD "cvi_update || run norboot || run nandboot ||run emmcboot"
 		#endif
